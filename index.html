@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login — HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body style="padding-bottom:0; padding-top:0;">
+
+<!-- স্প্ল্যাশ/লোডিং স্ক্রিন — ব্যাকগ্রাউন্ডে লগইন-স্ট্যাটাস চেক হয়, তারপর ঠিক পেজে পাঠানো হয় -->
+<div class="splash-screen" id="splashScreen">
+  <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/84x84/000/0ff?text=HM'">
+  <div class="sp-title">HM-NAYEM-TELECOM ADMIN</div>
+  <div class="sp-bar"><div class="sp-bar-fill"></div></div>
+</div>
+
+<div class="login-wrap hidden" id="loginWrap">
+  <div class="login-card">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/64x64/000/0ff?text=HM'">
+    <h1>HM-NAYEM-TELECOM</h1>
+    <p>অ্যাডমিন প্যানেল — শুধুমাত্র অনুমোদিত এডমিনদের জন্য</p>
+
+    <div class="field">
+      <label>ইমেইল</label>
+      <input type="email" id="loginEmail" placeholder="admin@example.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>পাসওয়ার্ড</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()"><i class="fa-solid fa-right-to-bracket"></i> লগইন করুন</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const splash = document.getElementById("splashScreen");
+  const loginWrap = document.getElementById("loginWrap");
+
+  function showLoginForm() {
+    splash.classList.add("hidden");
+    loginWrap.classList.remove("hidden");
+    if (params.get("denied") === "1") {
+      document.getElementById("loginError").textContent = "এই অ্যাকাউন্টের এডমিন অনুমতি নেই।";
+    }
+  }
+
+  // স্প্ল্যাশ স্ক্রিনের সময় ব্যাকগ্রাউন্ডে লগইন-স্ট্যাটাস চেক হচ্ছে
+  let decided = false;
+  auth.onAuthStateChanged((user) => {
+    if (decided) return;
+    if (!user) { decided = true; showLoginForm(); return; }
+    db.ref("admins/" + user.uid).once("value").then((snap) => {
+      decided = true;
+      if (snap.val() === true) {
+        // ইতিমধ্যে লগইন করা আছে — সরাসরি ড্যাশবোর্ডে না নিয়ে পাসকোড পেজে পাঠানো হবে
+        window.location.href = "admin-passcode.html";
+      } else {
+        auth.signOut().finally(showLoginForm);
+      }
+    }).catch(() => { decided = true; showLoginForm(); });
+  });
+  // নেটওয়ার্ক/ফায়ারবেজ সাড়া না দিলেও যেন স্প্ল্যাশে চিরকাল আটকে না থাকে
+  setTimeout(() => { if (!decided) { decided = true; showLoginForm(); } }, 4000);
+
+  function doLogin() {
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    const errBox = document.getElementById("loginError");
+    const btn = document.getElementById("loginBtn");
+    errBox.textContent = "";
+
+    if (!email || !password) {
+      errBox.textContent = "ইমেইল ও পাসওয়ার্ড দিন";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> লগইন হচ্ছে...';
+
+    auth.signInWithEmailAndPassword(email, password)
+      .then((cred) => db.ref("admins/" + cred.user.uid).once("value"))
+      .then((snap) => {
+        if (snap.val() === true) {
+          window.location.href = "admin-passcode.html";
+        } else {
+          auth.signOut();
+          errBox.textContent = "এই অ্যাকাউন্টের এডমিন অনুমতি নেই।";
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> লগইন করুন';
+        }
+      })
+      .catch((err) => {
+        let msg = "লগইন ব্যর্থ হয়েছে, আবার চেষ্টা করুন";
+        if (err.code === "auth/invalid-email") msg = "সঠিক ইমেইল দিন";
+        else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") msg = "ইমেইল বা পাসওয়ার্ড ভুল";
+        else if (err.code === "auth/too-many-requests") msg = "অনেকবার চেষ্টা করা হয়েছে, একটু পর আবার চেষ্টা করুন";
+        errBox.textContent = msg;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> লগইন করুন';
+      });
+  }
+
+  document.getElementById("loginPassword").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doLogin();
+  });
+</script>
+</body>
+</html>

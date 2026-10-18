@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>পাসকোড — HM-NAYEM-TELECOM Admin</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body style="padding-bottom:0; padding-top:0;">
+
+<div class="splash-screen" id="splashScreen">
+  <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/84x84/000/0ff?text=HM'">
+  <div class="sp-title">যাচাই করা হচ্ছে...</div>
+  <div class="sp-bar"><div class="sp-bar-fill"></div></div>
+</div>
+
+<div class="passcode-wrap hidden" id="passcodeWrap">
+  <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/60x60/000/0ff?text=HM'">
+  <h1 id="pcTitle">পাসকোড দিন</h1>
+  <p id="pcSubtitle">অ্যাডমিন প্যানেলে প্রবেশের জন্য ৬-ডিজিট পাসকোড দিন</p>
+
+  <div class="passcode-dots" id="passcodeDots">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+  </div>
+  <div class="passcode-error-text" id="pcError"></div>
+
+  <div class="passcode-keypad">
+    <button class="passcode-key" onclick="pcInput('1')">1</button>
+    <button class="passcode-key" onclick="pcInput('2')">2</button>
+    <button class="passcode-key" onclick="pcInput('3')">3</button>
+    <button class="passcode-key" onclick="pcInput('4')">4</button>
+    <button class="passcode-key" onclick="pcInput('5')">5</button>
+    <button class="passcode-key" onclick="pcInput('6')">6</button>
+    <button class="passcode-key" onclick="pcInput('7')">7</button>
+    <button class="passcode-key" onclick="pcInput('8')">8</button>
+    <button class="passcode-key" onclick="pcInput('9')">9</button>
+    <div class="passcode-key empty"></div>
+    <button class="passcode-key" onclick="pcInput('0')">0</button>
+    <button class="passcode-key" onclick="pcBackspace()"><i class="fa-solid fa-delete-left"></i></button>
+  </div>
+
+  <!-- সিক্রেট ট্রিগার — দেখতে সাধারণ ভার্সন-নাম্বার টেক্সট, ৫ বার ট্যাপ করলে মাস্টার-পাসকোড ইনপুট খুলবে -->
+  <div class="passcode-secret-trigger" id="secretTrigger">v2.4.1</div>
+  <div class="passcode-master-row" id="masterRow">
+    <input type="password" id="masterInput" placeholder="কোড" maxlength="12" inputmode="numeric">
+    <button class="btn btn-cyan" onclick="submitMaster()">যান</button>
+  </div>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let currentUser = null;
+  let mode = "enter"; // enter | setup1 | setup2
+  let firstSetupCode = "";
+  let pcValue = "";
+
+  auth.onAuthStateChanged((user) => {
+    if (!user) { window.location.href = "admin-login.html"; return; }
+    db.ref("admins/" + user.uid).once("value").then((snap) => {
+      if (snap.val() !== true) {
+        auth.signOut().finally(() => window.location.href = "admin-login.html?denied=1");
+        return;
+      }
+      currentUser = user;
+      // ইতিমধ্যে এই সেশনে পাসকোড ভেরিফাই করা থাকলে সরাসরি ড্যাশবোর্ডে
+      if (sessionStorage.getItem("hmAdminPasscodeOK") === "1") {
+        window.location.href = "admin-dashboard.html";
+        return;
+      }
+      checkPasscodeExists();
+    }).catch(() => { window.location.href = "admin-login.html"; });
+  });
+
+  function checkPasscodeExists() {
+    db.ref("adminPasscodes/" + currentUser.uid).once("value").then((snap) => {
+      const existing = snap.val();
+      document.getElementById("splashScreen").classList.add("hidden");
+      document.getElementById("passcodeWrap").classList.remove("hidden");
+      if (existing) {
+        mode = "enter";
+        document.getElementById("pcTitle").textContent = "পাসকোড দিন";
+        document.getElementById("pcSubtitle").textContent = "অ্যাডমিন প্যানেলে প্রবেশের জন্য ৬-ডিজিট পাসকোড দিন";
+      } else {
+        mode = "setup1";
+        document.getElementById("pcTitle").textContent = "নতুন পাসকোড সেট করুন";
+        document.getElementById("pcSubtitle").textContent = "প্রথমবার — একটি ৬-ডিজিট পাসকোড তৈরি করুন";
+      }
+    }).catch(() => {
+      document.getElementById("splashScreen").classList.add("hidden");
+      document.getElementById("passcodeWrap").classList.remove("hidden");
+      document.getElementById("pcError").textContent = "পাসকোড তথ্য লোড করা যায়নি, আবার চেষ্টা করুন";
+    });
+  }
+
+  function renderDots() {
+    const dots = document.querySelectorAll("#passcodeDots .dot");
+    dots.forEach((d, i) => d.classList.toggle("filled", i < pcValue.length));
+  }
+
+  function pcInput(digit) {
+    if (pcValue.length >= 6) return;
+    pcValue += digit;
+    renderDots();
+    document.getElementById("pcError").textContent = "";
+    if (pcValue.length === 6) setTimeout(handleComplete, 150);
+  }
+  function pcBackspace() {
+    pcValue = pcValue.slice(0, -1);
+    renderDots();
+  }
+  function shakeAndReset(message) {
+    const dotsBox = document.getElementById("passcodeDots");
+    dotsBox.classList.add("error");
+    document.getElementById("pcError").textContent = message;
+    setTimeout(() => {
+      dotsBox.classList.remove("error");
+      pcValue = "";
+      renderDots();
+    }, 450);
+  }
+
+  function handleComplete() {
+    if (mode === "setup1") {
+      firstSetupCode = pcValue;
+      pcValue = "";
+      renderDots();
+      mode = "setup2";
+      document.getElementById("pcTitle").textContent = "আবার লিখুন";
+      document.getElementById("pcSubtitle").textContent = "নিশ্চিত করতে পাসকোডটি আবার দিন";
+      return;
+    }
+    if (mode === "setup2") {
+      if (pcValue !== firstSetupCode) {
+        shakeAndReset("পাসকোড মিলেনি, আবার চেষ্টা করুন");
+        mode = "setup1";
+        firstSetupCode = "";
+        document.getElementById("pcTitle").textContent = "নতুন পাসকোড সেট করুন";
+        document.getElementById("pcSubtitle").textContent = "প্রথমবার — একটি ৬-ডিজিট পাসকোড তৈরি করুন";
+        return;
+      }
+      db.ref("adminPasscodes/" + currentUser.uid).set(pcValue).then(() => {
+        unlockAndGo();
+      }).catch(() => {
+        shakeAndReset("পাসকোড সেভ করা যায়নি, আবার চেষ্টা করুন");
+        mode = "setup1";
+      });
+      return;
+    }
+    // mode === "enter"
+    db.ref("adminPasscodes/" + currentUser.uid).once("value").then((snap) => {
+      if (snap.val() === pcValue) {
+        unlockAndGo();
+      } else {
+        shakeAndReset("ভুল পাসকোড, আবার চেষ্টা করুন");
+      }
+    }).catch(() => shakeAndReset("যাচাই করা যায়নি, আবার চেষ্টা করুন"));
+  }
+
+  function unlockAndGo() {
+    sessionStorage.setItem("hmAdminPasscodeOK", "1");
+    window.location.href = "admin-dashboard.html";
+  }
+
+  // ---------- সিক্রেট মাস্টার-পাসকোড ট্রিগার ----------
+  let tapCount = 0, tapTimer = null;
+  document.getElementById("secretTrigger").addEventListener("click", () => {
+    tapCount++;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(() => { tapCount = 0; }, 2500);
+    if (tapCount >= 5) {
+      tapCount = 0;
+      document.getElementById("masterRow").classList.add("show");
+    }
+  });
+  function submitMaster() {
+    const val = document.getElementById("masterInput").value.trim();
+    if (val === MASTER_PASSCODE) {
+      unlockAndGo();
+    } else {
+      showToast("ভুল কোড", "error");
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>সেটিংস — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">সেটিংস<span class="sub-title">নোটিস, যোগাযোগ, গেটওয়ে ও অ্যাডমিন</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadSettings()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- নোটিস -->
+  <div class="settings-group">
+    <div class="sg-title"><i class="fa-solid fa-bullhorn"></i> হোম পেজের নোটিস</div>
+    <p class="dc-sub" style="margin-bottom:10px;">হোম পেজের উপরে স্ক্রল হয়ে এই টেক্সট দেখাবে।</p>
+    <div class="field locked-field-wrap">
+      <label>নোটিস টেক্সট</label>
+      <textarea id="noticeText" disabled placeholder="যেমনঃ ঈদ উপলক্ষে বিশেষ ছাড়!"></textarea>
+      <button class="field-edit-btn" onclick="toggleFieldLock('noticeText', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <button class="btn btn-cyan btn-block" onclick="saveNotice()"><i class="fa-solid fa-check"></i> নোটিস সেভ করুন</button>
+  </div>
+
+  <!-- পেমেন্ট গেটওয়ে -->
+  <div class="settings-group">
+    <div class="sg-title"><i class="fa-solid fa-money-bill-transfer"></i> পেমেন্ট গেটওয়ে নাম্বার</div>
+    <div class="field locked-field-wrap">
+      <label><i class="fa-solid fa-mobile-screen-button"></i> বিকাশ নাম্বার</label>
+      <input type="text" id="gwBkash" disabled placeholder="017XXXXXXXX">
+      <button class="field-edit-btn" onclick="toggleFieldLock('gwBkash', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label><i class="fa-solid fa-mobile-screen-button"></i> নগদ নাম্বার</label>
+      <input type="text" id="gwNagad" disabled placeholder="017XXXXXXXX">
+      <button class="field-edit-btn" onclick="toggleFieldLock('gwNagad', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label><i class="fa-solid fa-mobile-screen-button"></i> রকেট নাম্বার</label>
+      <input type="text" id="gwRocket" disabled placeholder="017XXXXXXXX">
+      <button class="field-edit-btn" onclick="toggleFieldLock('gwRocket', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label><i class="fa-solid fa-mobile-screen-button"></i> উপায় নাম্বার</label>
+      <input type="text" id="gwUpay" disabled placeholder="017XXXXXXXX">
+      <button class="field-edit-btn" onclick="toggleFieldLock('gwUpay', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <button class="btn btn-cyan btn-block" onclick="saveGateways()"><i class="fa-solid fa-check"></i> গেটওয়ে নাম্বার সেভ করুন</button>
+  </div>
+
+  <!-- যোগাযোগ/সাপোর্ট -->
+  <div class="settings-group">
+    <div class="sg-title"><i class="fa-solid fa-headset"></i> যোগাযোগ / সাপোর্ট লিংক</div>
+    <p class="dc-sub" style="margin-bottom:10px;">হোম পেজের নিচের স্পিড-ডায়াল বাটনগুলোতে এই লিংক/নাম্বার দেখাবে।</p>
+    <div class="field locked-field-wrap">
+      <label><i class="fa-brands fa-facebook"></i> ফেসবুক পেজ লিংক</label>
+      <input type="text" id="cFacebook" disabled placeholder="https://facebook.com/yourpage">
+      <button class="field-edit-btn" onclick="toggleFieldLock('cFacebook', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label><i class="fa-brands fa-whatsapp"></i> হোয়াটসঅ্যাপ নাম্বার (দেশের কোড সহ)</label>
+      <input type="text" id="cWhatsapp" disabled placeholder="8801XXXXXXXXX">
+      <button class="field-edit-btn" onclick="toggleFieldLock('cWhatsapp', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label><i class="fa-brands fa-telegram"></i> টেলিগ্রাম লিংক</label>
+      <input type="text" id="cTelegram" disabled placeholder="https://t.me/yourchannel">
+      <button class="field-edit-btn" onclick="toggleFieldLock('cTelegram', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label><i class="fa-solid fa-phone"></i> কল করার নাম্বার</label>
+      <input type="text" id="cPhone" disabled placeholder="01XXXXXXXXX">
+      <button class="field-edit-btn" onclick="toggleFieldLock('cPhone', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <button class="btn btn-cyan btn-block" onclick="saveContact()"><i class="fa-solid fa-check"></i> যোগাযোগ তথ্য সেভ করুন</button>
+  </div>
+
+  <!-- পাসকোড পরিবর্তন -->
+  <div class="settings-group">
+    <div class="sg-title"><i class="fa-solid fa-shield-halved"></i> লগইন পাসকোড পরিবর্তন</div>
+    <p class="dc-sub" style="margin-bottom:10px;">অ্যাপে ঢোকার সময় ব্যবহৃত ৬-ডিজিট পাসকোড এখান থেকে বদলাতে পারবেন।</p>
+    <div class="field locked-field-wrap">
+      <label>পুরাতন পাসকোড</label>
+      <input type="password" id="oldPasscode" disabled inputmode="numeric" maxlength="6" placeholder="বর্তমান ৬-ডিজিট পাসকোড" autocomplete="off">
+      <button class="field-edit-btn" onclick="toggleFieldLock('oldPasscode', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label>নতুন পাসকোড</label>
+      <input type="password" id="newPasscode1" disabled inputmode="numeric" maxlength="6" placeholder="নতুন ৬-ডিজিট পাসকোড" autocomplete="off">
+      <button class="field-edit-btn" onclick="toggleFieldLock('newPasscode1', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label>নতুন পাসকোড আবার লিখুন</label>
+      <input type="password" id="newPasscode2" disabled inputmode="numeric" maxlength="6" placeholder="নতুন পাসকোড আবার লিখুন" autocomplete="off">
+      <button class="field-edit-btn" onclick="toggleFieldLock('newPasscode2', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="login-error" id="passcodeChangeError" style="text-align:left; margin-bottom:10px;"></div>
+    <button class="btn btn-cyan btn-block" onclick="changePasscode(this)"><i class="fa-solid fa-check"></i> পাসকোড পরিবর্তন করুন</button>
+  </div>
+
+  <!-- অ্যাডমিন অ্যাক্সেস ম্যানেজমেন্ট -->
+  <div class="settings-group">
+    <div class="sg-title"><i class="fa-solid fa-user-shield"></i> অ্যাডমিন অ্যাক্সেস ম্যানেজমেন্ট</div>
+    <p class="dc-sub" style="margin-bottom:12px;">লগইন করা আছেঃ <span id="adminEmailBig" style="color:#fff;"></span></p>
+    <div class="field locked-field-wrap">
+      <label>নতুন অ্যাডমিনের UID (Firebase Authentication থেকে কপি করুন)</label>
+      <input type="text" id="newAdminUid" disabled placeholder="যেমনঃ aB3xY9...">
+      <button class="field-edit-btn" onclick="toggleFieldLock('newAdminUid', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <div class="field locked-field-wrap">
+      <label>নোট (কার অ্যাক্সেস, চেনার জন্য — ঐচ্ছিক)</label>
+      <input type="text" id="newAdminNote" disabled placeholder="যেমনঃ করিম ভাই - সাপোর্ট টিম">
+      <button class="field-edit-btn" onclick="toggleFieldLock('newAdminNote', this)"><i class="fa-solid fa-pen"></i></button>
+    </div>
+    <button class="btn btn-cyan btn-block" onclick="addAdminAccess()"><i class="fa-solid fa-user-plus"></i> অ্যাডমিন অ্যাক্সেস দিন</button>
+    <p class="dc-sub" style="margin-top:10px; line-height:1.6;">নতুন অ্যাডমিনকে প্রথমে Firebase Console → Authentication এ ইমেইল/পাসওয়ার্ড দিয়ে ইউজার তৈরি করে তার UID এখানে বসাতে হবে।</p>
+  </div>
+  <div id="adminsListBox"><div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div></div>
+</div>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let currentUid = null;
+
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    document.getElementById("adminEmailBig").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    currentUid = user.uid;
+    loadSettings();
+    loadAdminsList();
+  });
+
+  function loadSettings() {
+    db.ref("settings/notice").once("value").then((snap) => {
+      const d = snap.val();
+      document.getElementById("noticeText").value = (d && d.text) ? d.text : "";
+    }).catch(() => {
+      showToast("নোটিস লোড করা যায়নি", "error");
+    });
+
+    db.ref("paymentConfig").once("value").then((snap) => {
+      const d = snap.val() || {};
+      document.getElementById("gwBkash").value = (d.bkash && d.bkash.number) || "";
+      document.getElementById("gwNagad").value = (d.nagad && d.nagad.number) || "";
+      document.getElementById("gwRocket").value = (d.rocket && d.rocket.number) || "";
+      document.getElementById("gwUpay").value = (d.upay && d.upay.number) || "";
+    }).catch(() => {
+      showToast("গেটওয়ে সেটিংস লোড করা যায়নি", "error");
+    });
+
+    db.ref("settings/contact").once("value").then((snap) => {
+      const d = snap.val() || {};
+      document.getElementById("cFacebook").value = d.facebook || "";
+      document.getElementById("cWhatsapp").value = d.whatsapp || "";
+      document.getElementById("cTelegram").value = d.telegram || "";
+      document.getElementById("cPhone").value = d.phone || "";
+    }).catch(() => {
+      showToast("যোগাযোগ তথ্য লোড করা যায়নি", "error");
+    });
+  }
+
+  // সেভ করার পর ফিল্ডগুলো আবার লক করে দেওয়া হয় (নিরাপদ থাকার জন্য)
+  function relockFields(ids) {
+    ids.forEach((id) => {
+      const input = document.getElementById(id);
+      const btn = input.parentElement.querySelector(".field-edit-btn");
+      input.disabled = true;
+      if (btn) { btn.classList.remove("editing"); btn.innerHTML = '<i class="fa-solid fa-pen"></i>'; }
+    });
+  }
+
+  function saveNotice() {
+    const text = document.getElementById("noticeText").value.trim();
+    db.ref("settings/notice").set({ text })
+      .then(() => { showToast("নোটিস সেভ করা হয়েছে", "success"); relockFields(["noticeText"]); })
+      .catch(() => showToast("নোটিস সেভ করা যায়নি", "error"));
+  }
+
+  function saveGateways() {
+    const updates = {
+      bkash: { number: document.getElementById("gwBkash").value.trim() },
+      nagad: { number: document.getElementById("gwNagad").value.trim() },
+      rocket: { number: document.getElementById("gwRocket").value.trim() },
+      upay: { number: document.getElementById("gwUpay").value.trim() }
+    };
+    db.ref("paymentConfig").update(updates)
+      .then(() => { showToast("গেটওয়ে নাম্বার সেভ করা হয়েছে", "success"); relockFields(["gwBkash","gwNagad","gwRocket","gwUpay"]); })
+      .catch(() => showToast("গেটওয়ে নাম্বার সেভ করা যায়নি", "error"));
+  }
+
+  function saveContact() {
+    const updates = {
+      facebook: document.getElementById("cFacebook").value.trim(),
+      whatsapp: document.getElementById("cWhatsapp").value.trim().replace(/[^0-9]/g, ""),
+      telegram: document.getElementById("cTelegram").value.trim(),
+      phone: document.getElementById("cPhone").value.trim()
+    };
+    db.ref("settings/contact").set(updates)
+      .then(() => { showToast("যোগাযোগ তথ্য সেভ করা হয়েছে", "success"); relockFields(["cFacebook","cWhatsapp","cTelegram","cPhone"]); })
+      .catch(() => showToast("যোগাযোগ তথ্য সেভ করা যায়নি", "error"));
+  }
+
+  function changePasscode(btn) {
+    const oldVal = document.getElementById("oldPasscode").value.trim();
+    const newVal1 = document.getElementById("newPasscode1").value.trim();
+    const newVal2 = document.getElementById("newPasscode2").value.trim();
+    const errBox = document.getElementById("passcodeChangeError");
+    errBox.textContent = "";
+
+    if (!/^\d{6}$/.test(oldVal)) { errBox.textContent = "পুরাতন পাসকোড ৬-ডিজিটের সংখ্যা হতে হবে"; return; }
+    if (!/^\d{6}$/.test(newVal1)) { errBox.textContent = "নতুন পাসকোড ৬-ডিজিটের সংখ্যা হতে হবে"; return; }
+    if (newVal1 !== newVal2) { errBox.textContent = "নতুন পাসকোড দুটি মিলছে না"; return; }
+    if (newVal1 === oldVal) { errBox.textContent = "নতুন পাসকোড পুরাতনটির থেকে আলাদা হতে হবে"; return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> যাচাই করা হচ্ছে...';
+
+    db.ref("adminPasscodes/" + currentUid).once("value").then((snap) => {
+      const stored = snap.val();
+      // আগে থেকে পাসকোড সেট করা থাকলে পুরাতনটা মিলিয়ে দেখা হয়; না থাকলে (যেমন মাস্টার-কোড দিয়ে ঢোকা হলে) সরাসরি নতুনটা সেভ হবে
+      if (stored && stored !== oldVal) {
+        errBox.textContent = "পুরাতন পাসকোড সঠিক নয়";
+        return null;
+      }
+      return db.ref("adminPasscodes/" + currentUid).set(newVal1);
+    }).then((result) => {
+      if (result === null) return; // ভুল পুরাতন পাসকোড, এরর দেখানো হয়ে গেছে
+      showToast("পাসকোড পরিবর্তন করা হয়েছে", "success");
+      document.getElementById("oldPasscode").value = "";
+      document.getElementById("newPasscode1").value = "";
+      document.getElementById("newPasscode2").value = "";
+      relockFields(["oldPasscode", "newPasscode1", "newPasscode2"]);
+    }).catch(() => {
+      errBox.textContent = "পাসকোড পরিবর্তন করা যায়নি, আবার চেষ্টা করুন";
+    }).finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> পাসকোড পরিবর্তন করুন';
+    });
+  }
+
+  // ---------- অ্যাডমিন অ্যাক্সেস ম্যানেজমেন্ট ----------
+  function loadAdminsList() {
+    const box = document.getElementById("adminsListBox");
+    box.innerHTML = '<div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>';
+
+    Promise.all([db.ref("admins").once("value"), db.ref("adminNotes").once("value")])
+      .then(([snap, notesSnap]) => {
+        const notes = notesSnap.val() || {};
+        const uids = [];
+        snap.forEach((child) => { if (child.val() === true) uids.push(child.key); });
+        if (uids.length === 0) { box.innerHTML = '<div class="empty-state">কোনো অ্যাডমিন পাওয়া যায়নি</div>'; return; }
+        box.innerHTML = uids.map((uid) => {
+          const isSelf = uid === currentUid;
+          return `
+            <div class="data-card">
+              <div class="dc-top">
+                <div><div class="dc-title" style="word-break:break-all;">${escapeHtml(uid)}</div><div class="dc-sub">${escapeHtml(notes[uid] || 'কোনো নোট নেই')}</div></div>
+                ${isSelf
+                  ? '<span class="badge active">আপনি</span>'
+                  : `<button class="btn btn-red" onclick="removeAdminAccess('${uid}')"><i class="fa-solid fa-trash"></i></button>`}
+              </div>
+            </div>`;
+        }).join("");
+      })
+      .catch(() => {
+        box.innerHTML = '<div class="empty-state">অ্যাডমিন তালিকা লোড করা যায়নি</div>';
+        showToast("অ্যাডমিন তালিকা লোড করা যায়নি", "error");
+      });
+  }
+
+  function addAdminAccess() {
+    const uid = document.getElementById("newAdminUid").value.trim();
+    const note = document.getElementById("newAdminNote").value.trim();
+    if (!uid) { showToast("UID দিন", "error"); return; }
+
+    const updates = {};
+    updates["admins/" + uid] = true;
+    if (note) updates["adminNotes/" + uid] = note;
+
+    db.ref().update(updates)
+      .then(() => {
+        showToast("অ্যাডমিন অ্যাক্সেস দেওয়া হয়েছে", "success");
+        document.getElementById("newAdminUid").value = "";
+        document.getElementById("newAdminNote").value = "";
+        relockFields(["newAdminUid","newAdminNote"]);
+        loadAdminsList();
+      })
+      .catch(() => showToast("অ্যাডমিন অ্যাক্সেস দেওয়া যায়নি", "error"));
+  }
+
+  function removeAdminAccess(uid) {
+    if (!confirm("এই UID-এর অ্যাডমিন অ্যাক্সেস বাতিল করবেন?")) return;
+    const updates = {};
+    updates["admins/" + uid] = null;
+    updates["adminNotes/" + uid] = null;
+    db.ref().update(updates)
+      .then(() => { showToast("অ্যাডমিন অ্যাক্সেস বাতিল করা হয়েছে", "success"); loadAdminsList(); })
+      .catch(() => showToast("বাতিল করা যায়নি", "error"));
+  }
+</script>
+</body>
+</html>

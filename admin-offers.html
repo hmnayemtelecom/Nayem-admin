@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>অফার সমূহ — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">অফার সমূহ<span class="sub-title" id="offerCountSub">লোড হচ্ছে...</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadOffers()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="tab-row" id="catTabs">
+    <button class="tab-btn active" data-cat="all" onclick="setCatFilter('all')">সকল</button>
+    <button class="tab-btn" data-cat="recharge" onclick="setCatFilter('recharge')">রিচার্জ</button>
+    <button class="tab-btn" data-cat="internet" onclick="setCatFilter('internet')">ইন্টারনেট</button>
+    <button class="tab-btn" data-cat="minute" onclick="setCatFilter('minute')">মিনিট</button>
+    <button class="tab-btn" data-cat="bundle" onclick="setCatFilter('bundle')">বান্ডেল</button>
+  </div>
+  <div id="offersBox"><div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div></div>
+</div>
+
+<button class="fab-add" onclick="openOfferModal()"><i class="fa-solid fa-plus"></i></button>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<!-- অফার তৈরি/এডিট মোডাল -->
+<div class="modal-overlay" id="offerModal">
+  <div class="modal-box">
+    <h3 id="offerModalTitle"><i class="fa-solid fa-tags"></i> নতুন অফার</h3>
+    <input type="hidden" id="offerId">
+    <div class="field"><label>অফারের নাম</label><input type="text" id="offerName" placeholder="যেমনঃ 3GB + 100 মিনিট"></div>
+    <div class="field"><label>অপারেটর</label>
+      <select id="offerOperator">
+        <option value="grameenphone">Grameenphone</option>
+        <option value="skitto">Skitto</option>
+        <option value="airtel">Airtel</option>
+        <option value="robi">Robi</option>
+        <option value="banglalink">Banglalink</option>
+        <option value="teletalk">Teletalk</option>
+        <option value="brilliant">Brilliant Research</option>
+        <option value="alap">Alap</option>
+      </select>
+    </div>
+    <div class="field"><label>ক্যাটাগরি</label>
+      <select id="offerCategory">
+        <option value="recharge">রিচার্জ</option>
+        <option value="internet">ইন্টারনেট</option>
+        <option value="minute">মিনিট</option>
+        <option value="bundle">বান্ডেল</option>
+      </select>
+    </div>
+    <div class="field"><label>মেয়াদ (দিন)</label>
+      <select id="offerValidity">
+        <option value="7">৭ দিন</option>
+        <option value="30">৩০ দিন</option>
+      </select>
+    </div>
+    <div class="field"><label>দোকানের মূল্য (৳)</label><input type="number" id="offerShopPrice" placeholder="0"></div>
+    <div class="field"><label>আমাদের মূল্য (৳)</label><input type="number" id="offerPrice" placeholder="0"></div>
+    <div class="field"><label>ডিসকাউন্ট (৳)</label><input type="number" id="offerDiscount" placeholder="0"></div>
+    <div class="field"><label>শর্ত (Condition)</label><textarea id="offerCondition" placeholder="যেমনঃ শুধু নতুন সিমের জন্য প্রযোজ্য"></textarea></div>
+    <div class="field checkbox-row"><input type="checkbox" id="offerActive" checked style="width:16px;height:16px;"> <label for="offerActive" style="margin:0;">অফারটি সক্রিয় (Active) রাখুন</label></div>
+    <div class="modal-actions">
+      <button class="btn btn-muted" onclick="closeOfferModal()">বাতিল</button>
+      <button class="btn btn-green" onclick="submitOffer()"><i class="fa-solid fa-check"></i> সেভ করুন</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let allOffers = [];
+  let catFilter = "all";
+
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    loadOffers();
+  });
+
+  function loadOffers() {
+    document.getElementById("offersBox").innerHTML = '<div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>';
+    db.ref("offers").once("value").then((snap) => {
+      allOffers = [];
+      snap.forEach((c) => { const o = c.val() || {}; o.id = c.key; allOffers.push(o); });
+      allOffers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      document.getElementById("offerCountSub").textContent = `মোট ${allOffers.length}টি অফার`;
+      renderOffers();
+    }).catch(() => {
+      document.getElementById("offersBox").innerHTML = '<div class="empty-state">অফার লোড করা যায়নি</div>';
+    });
+  }
+
+  function setCatFilter(cat) {
+    catFilter = cat;
+    document.querySelectorAll("#catTabs .tab-btn").forEach(b => b.classList.toggle("active", b.dataset.cat === cat));
+    renderOffers();
+  }
+
+  function renderOffers() {
+    const list = catFilter === "all" ? allOffers : allOffers.filter(o => o.category === catFilter);
+    const box = document.getElementById("offersBox");
+    if (list.length === 0) { box.innerHTML = '<div class="empty-state">কোনো অফার নেই</div>'; return; }
+    box.innerHTML = list.map(o => `
+      <div class="data-card">
+        <div class="dc-top">
+          <div><div class="dc-title">${escapeHtml(o.name || '-')}</div><div class="dc-sub">${escapeHtml(o.operator || '-')} · ${escapeHtml(o.category || '-')}</div></div>
+          <span class="badge ${o.active ? 'active' : 'inactive'}">${o.active ? 'সক্রিয়' : 'নিষ্ক্রিয়'}</span>
+        </div>
+        <div class="dc-grid">
+          <div class="dc-item"><div class="k">মেয়াদ</div><div class="v">${o.validityDays || '-'} দিন</div></div>
+          <div class="dc-item"><div class="k">দোকান মূল্য</div><div class="v">${fmtMoney(o.shopPrice)}</div></div>
+          <div class="dc-item"><div class="k">আমাদের মূল্য</div><div class="v">${fmtMoney(o.price)}</div></div>
+        </div>
+        <div class="dc-actions">
+          <button class="btn btn-cyan" onclick="openOfferModal('${o.id}')"><i class="fa-solid fa-pen"></i> এডিট</button>
+          <button class="btn btn-red" onclick="deleteOffer('${o.id}')"><i class="fa-solid fa-trash"></i> ডিলিট</button>
+        </div>
+      </div>`).join("");
+  }
+
+  function openOfferModal(id) {
+    document.getElementById("offerModal").classList.add("show");
+    if (id) {
+      const o = allOffers.find(x => x.id === id);
+      document.getElementById("offerModalTitle").innerHTML = '<i class="fa-solid fa-pen"></i> অফার এডিট করুন';
+      document.getElementById("offerId").value = id;
+      document.getElementById("offerName").value = o.name || "";
+      document.getElementById("offerOperator").value = o.operator || "grameenphone";
+      document.getElementById("offerCategory").value = o.category || "recharge";
+      document.getElementById("offerValidity").value = o.validityDays || 7;
+      document.getElementById("offerShopPrice").value = o.shopPrice || "";
+      document.getElementById("offerPrice").value = o.price || "";
+      document.getElementById("offerDiscount").value = o.discount || "";
+      document.getElementById("offerCondition").value = o.condition || "";
+      document.getElementById("offerActive").checked = o.active !== false;
+    } else {
+      document.getElementById("offerModalTitle").innerHTML = '<i class="fa-solid fa-tags"></i> নতুন অফার';
+      document.getElementById("offerId").value = "";
+      document.getElementById("offerName").value = "";
+      document.getElementById("offerOperator").value = "grameenphone";
+      document.getElementById("offerCategory").value = "recharge";
+      document.getElementById("offerValidity").value = "7";
+      document.getElementById("offerShopPrice").value = "";
+      document.getElementById("offerPrice").value = "";
+      document.getElementById("offerDiscount").value = "";
+      document.getElementById("offerCondition").value = "";
+      document.getElementById("offerActive").checked = true;
+    }
+  }
+  function closeOfferModal() { document.getElementById("offerModal").classList.remove("show"); }
+
+  function submitOffer() {
+    const id = document.getElementById("offerId").value;
+    const name = document.getElementById("offerName").value.trim();
+    const price = parseFloat(document.getElementById("offerPrice").value);
+    if (!name) { showToast("অফারের নাম দিন", "error"); return; }
+    if (isNaN(price) || price < 0) { showToast("সঠিক মূল্য দিন", "error"); return; }
+
+    const data = {
+      name,
+      operator: document.getElementById("offerOperator").value,
+      category: document.getElementById("offerCategory").value,
+      validityDays: parseInt(document.getElementById("offerValidity").value, 10),
+      shopPrice: parseFloat(document.getElementById("offerShopPrice").value) || 0,
+      price: price,
+      discount: parseFloat(document.getElementById("offerDiscount").value) || 0,
+      condition: document.getElementById("offerCondition").value.trim(),
+      active: document.getElementById("offerActive").checked
+    };
+
+    const ref = id ? db.ref("offers/" + id) : db.ref("offers").push();
+    if (!id) data.createdAt = firebase.database.ServerValue.TIMESTAMP;
+
+    ref.update(data)
+      .then(() => { showToast("অফার সেভ করা হয়েছে", "success"); closeOfferModal(); loadOffers(); })
+      .catch(() => showToast("অফার সেভ করা যায়নি", "error"));
+  }
+
+  function deleteOffer(id) {
+    if (!confirm("এই অফারটি মুছে ফেলতে চান?")) return;
+    db.ref("offers/" + id).remove()
+      .then(() => { showToast("অফার মুছে ফেলা হয়েছে", "success"); loadOffers(); })
+      .catch(() => showToast("অফার মুছা যায়নি", "error"));
+  }
+</script>
+</body>
+</html>

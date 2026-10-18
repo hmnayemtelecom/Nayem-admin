@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ডিপোজিট — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">ডিপোজিট<span class="sub-title">bKash / Nagad / Rocket / Upay</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadDeposits()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="tab-row" id="statusTabs">
+    <button class="tab-btn active" data-status="pending" onclick="setFilter('pending')">পেন্ডিং</button>
+    <button class="tab-btn" data-status="approved" onclick="setFilter('approved')">অনুমোদিত</button>
+    <button class="tab-btn" data-status="rejected" onclick="setFilter('rejected')">বাতিল</button>
+    <button class="tab-btn" data-status="all" onclick="setFilter('all')">সকল ডিপোজিট</button>
+  </div>
+  <div id="depositsBox"><div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div></div>
+</div>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let allDeposits = [];
+  let usersMap = {};
+  let currentFilter = "pending";
+
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    loadDeposits();
+  });
+
+  function loadDeposits() {
+    document.getElementById("depositsBox").innerHTML = '<div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>';
+    Promise.all([db.ref("deposits").once("value"), db.ref("users").once("value")])
+      .then(([depSnap, usersSnap]) => {
+        usersMap = {};
+        usersSnap.forEach((c) => { usersMap[c.key] = c.val() || {}; });
+        allDeposits = [];
+        depSnap.forEach((c) => { const d = c.val() || {}; d.id = c.key; allDeposits.push(d); });
+        allDeposits.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        renderDeposits();
+      })
+      .catch(() => {
+        document.getElementById("depositsBox").innerHTML = '<div class="empty-state">ডিপোজিট লোড করা যায়নি</div>';
+      });
+  }
+
+  function setFilter(status) {
+    currentFilter = status;
+    document.querySelectorAll("#statusTabs .tab-btn").forEach(b => b.classList.toggle("active", b.dataset.status === status));
+    renderDeposits();
+  }
+
+  function userLabel(uid) {
+    const u = usersMap[uid];
+    if (!u) return uid ? uid.slice(0, 8) + "…" : "-";
+    return escapeHtml(u.name || u.firstName || (u.customUid || uid.slice(0, 8)));
+  }
+  function userPhoto(uid) {
+    const u = usersMap[uid];
+    return u ? u.photoUrl : "";
+  }
+
+  function renderDeposits() {
+    const list = currentFilter === "all" ? allDeposits : allDeposits.filter(d => d.status === currentFilter);
+    const box = document.getElementById("depositsBox");
+    if (list.length === 0) { box.innerHTML = '<div class="empty-state">কোনো ডিপোজিট নেই</div>'; return; }
+    box.innerHTML = list.map(d => {
+      const statusBadge = `<span class="badge ${d.status}">${d.status === 'pending' ? 'পেন্ডিং' : d.status === 'approved' ? 'অনুমোদিত' : d.status === 'processing' ? 'প্রসেসিং...' : 'বাতিল'}</span>`;
+      const actions = d.status === "pending"
+        ? `<div class="dc-actions">
+             <button class="btn btn-green" onclick="approveDeposit('${d.id}', this)"><i class="fa-solid fa-check"></i> অনুমোদন</button>
+             <button class="btn btn-red" onclick="rejectDeposit('${d.id}', this)"><i class="fa-solid fa-xmark"></i> বাতিল</button>
+           </div>` : "";
+      return `<div class="data-card">
+        <div class="dc-top">
+          <div class="avatar-row">
+            ${avatarHtml(userPhoto(d.userId), 'sm')}
+            <div><div class="dc-title">${userLabel(d.userId)}</div><div class="dc-sub">${escapeHtml(d.gateway || '-')}</div></div>
+          </div>
+          <div class="dc-time">${fmtDate(d.createdAt)}</div>
+        </div>
+        <div class="dc-badges">${statusBadge}</div>
+        <div class="dc-grid">
+          <div class="dc-item"><div class="k">এমাউন্ট</div><div class="v">${fmtMoney(d.amount)}</div></div>
+          <div class="dc-item"><div class="k">ট্রানজেকশন আইডি</div><div class="v copyable-row">${escapeHtml(d.trxId || '-')}${d.trxId ? `<button class="copy-btn" onclick="copyText('${escapeHtml(d.trxId)}','ট্রানজেকশন আইডি কপি হয়েছে')"><i class="fa-solid fa-copy"></i></button>` : ''}</div></div>
+          <div class="dc-item"><div class="k">সেন্ডার নাম্বার</div><div class="v copyable-row">${escapeHtml(d.senderNumber || '-')}${d.senderNumber ? `<button class="copy-btn" onclick="copyText('${escapeHtml(d.senderNumber)}','নাম্বার কপি হয়েছে')"><i class="fa-solid fa-copy"></i></button>` : ''}</div></div>
+        </div>
+        ${actions}
+      </div>`;
+    }).join("");
+  }
+
+  // ডিপোজিট প্রসেসিং শুরুর আগে status-এ অ্যাটমিক claim নেওয়া হয় (pending -> processing),
+  // যাতে ডাবল-ক্লিক বা দুই ট্যাব/ডিভাইস থেকে একসাথে Approve করলেও ব্যালেন্স দুইবার যোগ না হয়।
+  function claimDeposit(depositId) {
+    return db.ref("deposits/" + depositId + "/status").transaction((current) => {
+      if (current !== "pending") return;
+      return "processing";
+    });
+  }
+
+  function releaseDepositBackToPending(depositId) {
+    db.ref("deposits/" + depositId + "/status").set("pending").catch(() => {});
+  }
+
+  // ডিপোজিট অনুমোদন হলে ইউজারের ওয়ালেটে টাকা যোগ হবে
+  function approveDeposit(depositId, btnEl) {
+    const dep = allDeposits.find(d => d.id === depositId);
+    if (!dep || dep.status !== "pending") return;
+    if (!confirm(`এই ডিপোজিট (${fmtMoney(dep.amount)}) অনুমোদন করবেন? ইউজারের ওয়ালেটে টাকা যোগ হবে।`)) return;
+
+    if (btnEl) btnEl.disabled = true;
+
+    claimDeposit(depositId).then((claimRes) => {
+      if (!claimRes.committed) {
+        showToast("ডিপোজিটটি ইতিমধ্যে প্রসেস করা হয়েছে/হচ্ছে", "error");
+        loadDeposits();
+        return;
+      }
+
+      const amount = Number(dep.amount || 0);
+      const balRef = db.ref("users/" + dep.userId + "/walletBalance");
+
+      // ব্যালেন্স ট্রানজেকশনের আগে একবার সরাসরি রিড করে ক্যাশ গরম করা হচ্ছে (consistency-এর জন্য)
+      balRef.once("value").then(() => {
+        return balRef.transaction((current) => (current || 0) + amount);
+      }).then((res) => {
+        if (!res.committed) {
+          releaseDepositBackToPending(depositId);
+          showToast("ব্যালেন্স আপডেট করা যায়নি", "error");
+          loadDeposits();
+          return;
+        }
+        return db.ref("deposits/" + depositId).update({ status: "approved" });
+      })
+      .then(() => { showToast("ডিপোজিট অনুমোদন করা হয়েছে", "success"); loadDeposits(); })
+      .catch(() => {
+        releaseDepositBackToPending(depositId);
+        showToast("ডিপোজিট আপডেট করা যায়নি", "error");
+        loadDeposits();
+      });
+    }).catch(() => {
+      showToast("ডিপোজিট প্রসেস করা যায়নি, আবার চেষ্টা করুন", "error");
+      if (btnEl) btnEl.disabled = false;
+    });
+  }
+
+  // ডিপোজিট বাতিলে কোনো ব্যালেন্স পরিবর্তন হয় না (এখনও ক্রেডিট করা হয়নি)
+  function rejectDeposit(depositId, btnEl) {
+    const dep = allDeposits.find(d => d.id === depositId);
+    if (!dep || dep.status !== "pending") return;
+    if (!confirm("এই ডিপোজিট রিকোয়েস্টটি বাতিল করবেন?")) return;
+
+    if (btnEl) btnEl.disabled = true;
+
+    claimDeposit(depositId).then((claimRes) => {
+      if (!claimRes.committed) {
+        showToast("ডিপোজিটটি ইতিমধ্যে প্রসেস করা হয়েছে/হচ্ছে", "error");
+        loadDeposits();
+        return;
+      }
+
+      db.ref("deposits/" + depositId).update({ status: "rejected" })
+        .then(() => { showToast("ডিপোজিট বাতিল করা হয়েছে", "success"); loadDeposits(); })
+        .catch(() => {
+          releaseDepositBackToPending(depositId);
+          showToast("ডিপোজিট আপডেট করা যায়নি", "error");
+          loadDeposits();
+        });
+    }).catch(() => {
+      showToast("ডিপোজিট প্রসেস করা যায়নি, আবার চেষ্টা করুন", "error");
+      if (btnEl) btnEl.disabled = false;
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>চ্যাট/সাপোর্ট — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">চ্যাট/সাপোর্ট<span class="sub-title">ইউজারদের সাথে সরাসরি চ্যাট</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadChatList()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container" style="padding:16px 14px 0;">
+  <input type="text" id="chatSearchBox" class="search-box" placeholder="নাম বা মোবাইল দিয়ে খুঁজুন..." oninput="renderChatList()">
+</div>
+<div class="container" style="padding:0;">
+  <div id="chatList"><div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div></div>
+</div>
+
+<!-- ফুল-স্ক্রিন চ্যাট থ্রেড ভিউ -->
+<div class="chat-thread-view" id="chatThreadView">
+  <div class="chat-thread-head">
+    <button onclick="closeChatThread()"><i class="fa-solid fa-arrow-left"></i></button>
+    <div class="nm" id="chatActiveName"></div>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input-row">
+    <input type="text" id="chatReplyInput" placeholder="মেসেজ লিখুন..." onkeydown="if(event.key==='Enter') sendReply();">
+    <button class="chat-send-btn" onclick="sendReply()"><i class="fa-solid fa-paper-plane"></i></button>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let usersMap = {};
+  let chatThreads = [];
+  let activeUid = null;
+  let activeMsgRef = null;
+
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    loadChatList();
+  });
+
+  function loadChatList() {
+    document.getElementById("chatList").innerHTML = '<div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>';
+    Promise.all([db.ref("users").once("value"), db.ref("chats").once("value")])
+      .then(([usersSnap, chatsSnap]) => {
+        usersMap = {};
+        usersSnap.forEach((c) => { usersMap[c.key] = c.val() || {}; });
+
+        const chatByUid = {};
+        chatsSnap.forEach((child) => {
+          const messages = child.val() && child.val().messages ? child.val().messages : {};
+          const msgArr = Object.values(messages);
+          msgArr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          const last = msgArr[msgArr.length - 1];
+          chatByUid[child.key] = { lastMsg: last, lastTime: last ? last.createdAt : 0 };
+        });
+
+        // সকল ইউজারের লিস্ট দেখানো হচ্ছে — যাদের মেসেজ আছে তারা সবার উপরে (মেসেঞ্জারের মতো),
+        // যাদের কোনো মেসেজ নেই তারা নিচে, নাম অনুযায়ী সাজানো
+        chatThreads = Object.keys(usersMap).map((uid) => {
+          const c = chatByUid[uid] || { lastMsg: null, lastTime: 0 };
+          return { uid, lastMsg: c.lastMsg, lastTime: c.lastTime };
+        });
+        chatThreads.sort((a, b) => {
+          if (b.lastTime !== a.lastTime) return b.lastTime - a.lastTime;
+          const nameA = (usersMap[a.uid] && (usersMap[a.uid].name || usersMap[a.uid].firstName)) || "";
+          const nameB = (usersMap[b.uid] && (usersMap[b.uid].name || usersMap[b.uid].firstName)) || "";
+          return nameA.localeCompare(nameB, "bn");
+        });
+        renderChatList();
+      }).catch(() => {
+        document.getElementById("chatList").innerHTML = '<div class="empty-state">চ্যাট লোড করা যায়নি</div>';
+      });
+  }
+
+  function renderChatList() {
+    const wrap = document.getElementById("chatList");
+    const q = (document.getElementById("chatSearchBox").value || "").trim().toLowerCase();
+    let list = chatThreads;
+    if (q) {
+      list = chatThreads.filter((t) => {
+        const u = usersMap[t.uid] || {};
+        const name = (u.name || u.firstName || "").toLowerCase();
+        const mobile = (u.mobile || "").toLowerCase();
+        return name.includes(q) || mobile.includes(q);
+      });
+    }
+    if (list.length === 0) { wrap.innerHTML = '<div class="empty-state">কোনো ইউজার পাওয়া যায়নি</div>'; return; }
+    wrap.innerHTML = "";
+    list.forEach((t) => {
+      const u = usersMap[t.uid] || {};
+      const name = u.name || u.firstName || (u.customUid || t.uid.slice(0, 8));
+      const div = document.createElement("div");
+      div.className = "chat-list-item";
+      div.style.cursor = "pointer";
+      div.onclick = () => openChat(t.uid, name);
+      div.innerHTML = `
+        <div class="avatar-row">
+          ${avatarHtml(u.photoUrl, 'sm')}
+          <div>
+            <div class="nm">${escapeHtml(name)}</div>
+            <div class="lm">${t.lastMsg ? (t.lastMsg.sender === 'admin' ? 'আপনিঃ ' : '') + escapeHtml(t.lastMsg.text || '') : 'কোনো মেসেজ নেই'}</div>
+          </div>
+        </div>
+        <i class="fa-solid fa-chevron-right" style="color:var(--muted);font-size:12px;"></i>
+      `;
+      wrap.appendChild(div);
+    });
+  }
+
+  function openChat(uid, name) {
+    activeUid = uid;
+    document.getElementById("chatActiveName").textContent = name;
+    document.getElementById("chatThreadView").classList.add("open");
+
+    if (activeMsgRef) activeMsgRef.off();
+    activeMsgRef = db.ref("chats/" + uid + "/messages").orderByChild("createdAt");
+    activeMsgRef.on("value", (snap) => {
+      const box = document.getElementById("chatMessages");
+      box.innerHTML = "";
+      snap.forEach((child) => {
+        const m = child.val() || {};
+        const div = document.createElement("div");
+        div.className = "chat-msg " + (m.sender === "admin" ? "admin" : "user");
+        const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" }) : "";
+        const textSpan = document.createElement("span");
+        textSpan.textContent = m.text; // XSS আটকাতে textContent ব্যবহার করা হচ্ছে
+        div.appendChild(textSpan);
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "tm";
+        timeSpan.textContent = time;
+        div.appendChild(timeSpan);
+        box.appendChild(div);
+      });
+      box.scrollTop = box.scrollHeight;
+    }, () => {
+      document.getElementById("chatMessages").innerHTML = '<div class="empty-state">মেসেজ লোড করা যায়নি</div>';
+    });
+  }
+
+  function closeChatThread() {
+    document.getElementById("chatThreadView").classList.remove("open");
+    if (activeMsgRef) { activeMsgRef.off(); activeMsgRef = null; }
+    activeUid = null;
+    loadChatList(); // লিস্টের সর্বশেষ মেসেজ প্রিভিউ রিফ্রেশ করা
+  }
+
+  function sendReply() {
+    const input = document.getElementById("chatReplyInput");
+    const text = input.value.trim();
+    if (!text || !activeUid) return;
+    input.disabled = true;
+    db.ref("chats/" + activeUid + "/messages").push({
+      text, sender: "admin", createdAt: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+      input.value = "";
+    }).catch(() => {
+      showToast("মেসেজ পাঠানো যায়নি, আবার চেষ্টা করুন", "error");
+    }).finally(() => {
+      input.disabled = false;
+      input.focus();
+    });
+  }
+</script>
+</body>
+</html>

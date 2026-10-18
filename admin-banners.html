@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ব্যানার সমূহ — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">ব্যানার সমূহ<span class="sub-title" id="bannerCountSub">লোড হচ্ছে...</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadBanners()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="bannersBox"><div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div></div>
+</div>
+
+<button class="fab-add" onclick="openBannerModal()"><i class="fa-solid fa-plus"></i></button>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<!-- ব্যানার তৈরি/এডিট মোডাল -->
+<div class="modal-overlay" id="bannerModal">
+  <div class="modal-box">
+    <h3 id="bannerModalTitle"><i class="fa-solid fa-image"></i> নতুন ব্যানার</h3>
+    <input type="hidden" id="bannerId">
+    <div class="field">
+      <label>ছবি আপলোড করুন</label>
+      <button type="button" class="btn btn-cyan" style="width:100%;" onclick="document.getElementById('bannerImageFile').click()">
+        <i class="fa-solid fa-upload"></i> গ্যালারি থেকে সিলেক্ট করুন
+      </button>
+      <input type="file" id="bannerImageFile" accept="image/*" style="display:none;" onchange="handleBannerFileSelect(event)">
+    </div>
+    <div style="text-align:center;color:#777;font-size:12px;margin:10px 0;">—— অথবা সরাসরি Image URL ব্যবহার করুন ——</div>
+    <div class="field"><label>ছবির URL (Image URL)</label><input type="text" id="bannerImageUrl" placeholder="https://..." oninput="updateBannerPreview()"></div>
+    <div id="bannerUploadStatus" style="font-size:12px;color:var(--cyan,#00e5ff);margin-bottom:8px;"></div>
+    <img id="bannerPreview" class="thumb hidden" alt="preview">
+    <div class="field"><label>ক্লিক করলে যেখানে যাবে (ঐচ্ছিক)</label><input type="text" id="bannerLink" placeholder="https://..."></div>
+    <div class="field"><label>প্রদর্শনের ক্রম (নাম্বার, ছোট আগে দেখাবে)</label><input type="number" id="bannerOrder" placeholder="1"></div>
+    <div class="field checkbox-row"><input type="checkbox" id="bannerActive" checked style="width:16px;height:16px;"> <label for="bannerActive" style="margin:0;">ব্যানারটি সক্রিয় (Active) রাখুন</label></div>
+    <div class="modal-actions">
+      <button class="btn btn-muted" onclick="closeBannerModal()">বাতিল</button>
+      <button class="btn btn-green" onclick="submitBanner()"><i class="fa-solid fa-check"></i> সেভ করুন</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let allBanners = [];
+
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    loadBanners();
+  });
+
+  function loadBanners() {
+    document.getElementById("bannersBox").innerHTML = '<div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>';
+    db.ref("banners").once("value").then((snap) => {
+      allBanners = [];
+      snap.forEach((c) => { const b = c.val() || {}; b.id = c.key; allBanners.push(b); });
+      allBanners.sort((a, b) => (a.order || 0) - (b.order || 0));
+      document.getElementById("bannerCountSub").textContent = `মোট ${allBanners.length}টি ব্যানার`;
+      renderBanners();
+    }).catch(() => {
+      document.getElementById("bannersBox").innerHTML = '<div class="empty-state">ব্যানার লোড করা যায়নি</div>';
+    });
+  }
+
+  function renderBanners() {
+    const box = document.getElementById("bannersBox");
+    if (allBanners.length === 0) { box.innerHTML = '<div class="empty-state">কোনো ব্যানার নেই</div>'; return; }
+    box.innerHTML = allBanners.map(b => `
+      <div class="data-card">
+        <img class="thumb" src="${escapeHtml(b.imageUrl || '')}" onerror="this.src='https://placehold.co/480x110/111/555?text=ছবি+পাওয়া+যায়নি'" alt="banner">
+        <div class="dc-top">
+          <div><div class="dc-title">ক্রম: ${b.order ?? '-'}</div><div class="dc-sub">${b.socialLink ? escapeHtml(b.socialLink) : 'কোনো লিংক নেই'}</div></div>
+          <span class="badge ${b.active ? 'active' : 'inactive'}">${b.active ? 'সক্রিয়' : 'নিষ্ক্রিয়'}</span>
+        </div>
+        <div class="dc-actions">
+          <button class="btn btn-cyan" onclick="openBannerModal('${b.id}')"><i class="fa-solid fa-pen"></i> এডিট</button>
+          <button class="btn btn-red" onclick="deleteBanner('${b.id}')"><i class="fa-solid fa-trash"></i> ডিলিট</button>
+        </div>
+      </div>`).join("");
+  }
+
+  // ImgBB-তে ছবি আপলোড করতে এই API Key লাগবে — api.imgbb.com থেকে ফ্রি নিয়ে এখানে বসাও
+  // (ইউজার অ্যাপের profile.html-এ যে key বসিয়েছ, সেই একই key এখানেও ব্যবহার করতে পারবে)
+  const IMGBB_API_KEY = "3106ee3a2104a09f6e52a6a46d1df44a";
+
+  function handleBannerFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("ছবির সাইজ সর্বোচ্চ 5MB হতে পারবে", "error");
+      return;
+    }
+
+    const statusBox = document.getElementById("bannerUploadStatus");
+    statusBox.textContent = "আপলোড হচ্ছে...";
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      // "data:image/xxx;base64," অংশটুকু বাদ দিয়ে শুধু base64 ডেটা ImgBB-তে পাঠানো হচ্ছে
+      const base64Data = e.target.result.split(",")[1];
+
+      const formData = new FormData();
+      formData.append("image", base64Data);
+
+      fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: "POST",
+        body: formData
+      })
+        .then((res) => res.json())
+        .then((result) => {
+          if (!result || !result.success || !result.data || !result.data.url) {
+            throw new Error("ImgBB upload failed");
+          }
+          // আপলোড হওয়া লিংকটা সরাসরি "ছবির URL" ফিল্ডে বসিয়ে দেওয়া হচ্ছে, যাতে সেভ করার সময়
+          // এটাই imageUrl হিসেবে ব্যবহার হয় — নিচের URL ফিল্ডে গিয়ে আলাদা করে কিছু করতে হবে না
+          document.getElementById("bannerImageUrl").value = result.data.url;
+          updateBannerPreview();
+          statusBox.textContent = "✅ আপলোড সম্পন্ন হয়েছে";
+        })
+        .catch(() => {
+          statusBox.textContent = "";
+          showToast("ছবি আপলোড করা যায়নি, আবার চেষ্টা করুন", "error");
+        });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updateBannerPreview() {
+    const url = document.getElementById("bannerImageUrl").value.trim();
+    const img = document.getElementById("bannerPreview");
+    if (url) { img.src = url; img.classList.remove("hidden"); } else { img.classList.add("hidden"); }
+  }
+
+  function openBannerModal(id) {
+    document.getElementById("bannerModal").classList.add("show");
+    document.getElementById("bannerUploadStatus").textContent = "";
+    document.getElementById("bannerImageFile").value = "";
+    if (id) {
+      const b = allBanners.find(x => x.id === id);
+      document.getElementById("bannerModalTitle").innerHTML = '<i class="fa-solid fa-pen"></i> ব্যানার এডিট করুন';
+      document.getElementById("bannerId").value = id;
+      document.getElementById("bannerImageUrl").value = b.imageUrl || "";
+      document.getElementById("bannerLink").value = b.socialLink || "";
+      document.getElementById("bannerOrder").value = b.order ?? "";
+      document.getElementById("bannerActive").checked = b.active !== false;
+    } else {
+      document.getElementById("bannerModalTitle").innerHTML = '<i class="fa-solid fa-image"></i> নতুন ব্যানার';
+      document.getElementById("bannerId").value = "";
+      document.getElementById("bannerImageUrl").value = "";
+      document.getElementById("bannerLink").value = "";
+      document.getElementById("bannerOrder").value = allBanners.length + 1;
+      document.getElementById("bannerActive").checked = true;
+    }
+    updateBannerPreview();
+  }
+  function closeBannerModal() { document.getElementById("bannerModal").classList.remove("show"); }
+
+  function submitBanner() {
+    const id = document.getElementById("bannerId").value;
+    const imageUrl = document.getElementById("bannerImageUrl").value.trim();
+    if (!imageUrl) { showToast("ছবির URL দিন", "error"); return; }
+
+    const data = {
+      imageUrl,
+      socialLink: document.getElementById("bannerLink").value.trim(),
+      order: parseInt(document.getElementById("bannerOrder").value, 10) || 0,
+      active: document.getElementById("bannerActive").checked
+    };
+
+    const ref = id ? db.ref("banners/" + id) : db.ref("banners").push();
+    if (!id) data.createdAt = firebase.database.ServerValue.TIMESTAMP;
+
+    ref.update(data)
+      .then(() => { showToast("ব্যানার সেভ করা হয়েছে", "success"); closeBannerModal(); loadBanners(); })
+      .catch(() => showToast("ব্যানার সেভ করা যায়নি", "error"));
+  }
+
+  function deleteBanner(id) {
+    if (!confirm("এই ব্যানারটি মুছে ফেলতে চান?")) return;
+    db.ref("banners/" + id).remove()
+      .then(() => { showToast("ব্যানার মুছে ফেলা হয়েছে", "success"); loadBanners(); })
+      .catch(() => showToast("ব্যানার মুছা যায়নি", "error"));
+  }
+</script>
+</body>
+</html>

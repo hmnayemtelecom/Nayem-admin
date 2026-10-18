@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ইউজার সমূহ — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">ইউজার সমূহ<span class="sub-title" id="userCountSub">লোড হচ্ছে...</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadUsers()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container">
+  <input type="text" id="searchBox" class="search-box" placeholder="নাম, মোবাইল বা ID দিয়ে খুঁজুন..." oninput="renderUsers()">
+  <div class="tab-row" id="statusTabs">
+    <button class="tab-btn active" data-status="all" onclick="setStatusFilter('all')">সকল ইউজার</button>
+    <button class="tab-btn" data-status="active" onclick="setStatusFilter('active')">সচল</button>
+    <button class="tab-btn" data-status="blocked" onclick="setStatusFilter('blocked')">ব্লকড</button>
+  </div>
+  <div id="usersBox"><div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div></div>
+</div>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<!-- ব্যালেন্স এডজাস্ট মোডাল -->
+<div class="modal-overlay" id="balanceModal">
+  <div class="modal-box">
+    <h3><i class="fa-solid fa-sack-dollar"></i> ব্যালেন্স এডজাস্ট করুন</h3>
+    <p class="dc-sub" id="balUserName" style="margin-bottom:14px;"></p>
+    <div class="field">
+      <label>বর্তমান ব্যালেন্স</label>
+      <input type="text" id="balCurrent" disabled style="opacity:0.7;">
+    </div>
+    <div class="field">
+      <label>পরিমাণ (যোগ করতে + দিন, বিয়োগ করতে - দিন, যেমন: 50 বা -50)</label>
+      <input type="number" id="balAmount" placeholder="যেমনঃ 100 অথবা -50">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-muted" onclick="closeBalanceModal()">বাতিল</button>
+      <button class="btn btn-green" onclick="submitBalanceAdjust()"><i class="fa-solid fa-check"></i> কনফার্ম</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let allUsers = [];
+  let balanceTargetUid = null;
+  let statusFilter = "all";
+
+  function setStatusFilter(status) {
+    statusFilter = status;
+    document.querySelectorAll("#statusTabs .tab-btn").forEach(b => b.classList.toggle("active", b.dataset.status === status));
+    renderUsers();
+  }
+
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    loadUsers();
+  });
+
+  function loadUsers() {
+    document.getElementById("usersBox").innerHTML = '<div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>';
+    db.ref("users").once("value").then((snap) => {
+      allUsers = [];
+      snap.forEach((c) => { const u = c.val() || {}; u.uid = c.key; allUsers.push(u); });
+      allUsers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      document.getElementById("userCountSub").textContent = `মোট ${allUsers.length} জন ইউজার`;
+      renderUsers();
+    }).catch(() => {
+      document.getElementById("usersBox").innerHTML = '<div class="empty-state">ইউজার লোড করা যায়নি</div>';
+    });
+  }
+
+  function renderUsers() {
+    const q = document.getElementById("searchBox").value.trim().toLowerCase();
+    let list = allUsers;
+    if (statusFilter === "active") list = list.filter(u => u.blocked !== true);
+    else if (statusFilter === "blocked") list = list.filter(u => u.blocked === true);
+    if (q) {
+      list = list.filter(u =>
+        (u.name || "").toLowerCase().includes(q) ||
+        (u.mobile || "").toLowerCase().includes(q) ||
+        (u.customUid || "").toLowerCase().includes(q)
+      );
+    }
+    const box = document.getElementById("usersBox");
+    if (list.length === 0) { box.innerHTML = '<div class="empty-state">কোনো ইউজার পাওয়া যায়নি</div>'; return; }
+    box.innerHTML = list.map(u => {
+      const name = escapeHtml(u.name || (u.firstName || "") + " " + (u.lastName || ""));
+      const cid = escapeHtml(u.customUid || u.uid.slice(0, 8));
+      const blocked = u.blocked === true;
+      const uidBoxId = "uidbox_" + u.uid;
+      return `<div class="data-card">
+        <div class="dc-top">
+          <div class="avatar-row">
+            ${avatarHtml(u.photoUrl, '', `onclick="toggleUidReveal('${uidBoxId}','${u.uid}')" title="Firebase UID দেখতে ক্লিক করুন"`)}
+            <div><div class="dc-title">${name}</div><div class="dc-sub">${cid} · <span class="copyable-row">${escapeHtml(u.mobile || '-')}${u.mobile ? `<button class="copy-btn" onclick="copyText('${escapeHtml(u.mobile)}','নাম্বার কপি হয়েছে')"><i class="fa-solid fa-copy"></i></button>` : ''}</span></div></div>
+          </div>
+          <span class="badge ${blocked ? 'blocked' : 'active'}">${blocked ? 'ব্লকড' : 'সচল'}</span>
+        </div>
+        <div class="uid-reveal" id="${uidBoxId}"></div>
+        <div class="dc-grid">
+          <div class="dc-item"><div class="k">ওয়ালেট ব্যালেন্স</div><div class="v">${fmtMoney(u.walletBalance)}</div></div>
+          <div class="dc-item"><div class="k">মোট খরচ</div><div class="v">${fmtMoney(u.totalSpent)}</div></div>
+          <div class="dc-item"><div class="k">এলাকা</div><div class="v">${escapeHtml(u.district || '-')}, ${escapeHtml(u.division || '-')}</div></div>
+        </div>
+        <div class="dc-actions">
+          <button class="btn btn-cyan" onclick="openBalanceModal('${u.uid}')"><i class="fa-solid fa-sack-dollar"></i> ব্যালেন্স</button>
+          <button class="btn ${blocked ? 'btn-green' : 'btn-red'}" onclick="toggleBlock('${u.uid}', ${blocked})">
+            <i class="fa-solid ${blocked ? 'fa-unlock' : 'fa-ban'}"></i> ${blocked ? 'আনব্লক' : 'ব্লক'}
+          </button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function toggleBlock(uid, isBlocked) {
+    const msg = isBlocked ? "এই ইউজারকে আনব্লক করবেন?" : "এই ইউজারকে ব্লক করবেন? সে অ্যাপ ব্যবহার করতে পারবে না।";
+    if (!confirm(msg)) return;
+    db.ref("users/" + uid).update({ blocked: !isBlocked })
+      .then(() => { showToast(isBlocked ? "ইউজার আনব্লক করা হয়েছে" : "ইউজার ব্লক করা হয়েছে", "success"); loadUsers(); })
+      .catch(() => showToast("স্ট্যাটাস আপডেট করা যায়নি", "error"));
+  }
+
+  function openBalanceModal(uid) {
+    balanceTargetUid = uid;
+    const u = allUsers.find(x => x.uid === uid);
+    document.getElementById("balUserName").textContent = (u.name || u.firstName || "") + " — " + (u.customUid || uid.slice(0, 8));
+    document.getElementById("balCurrent").value = fmtMoney(u.walletBalance);
+    document.getElementById("balAmount").value = "";
+    document.getElementById("balanceModal").classList.add("show");
+  }
+  function closeBalanceModal() {
+    document.getElementById("balanceModal").classList.remove("show");
+    balanceTargetUid = null;
+  }
+
+  function submitBalanceAdjust() {
+    const amount = parseFloat(document.getElementById("balAmount").value);
+    if (!amount || isNaN(amount)) { showToast("সঠিক পরিমাণ দিন (যেমন 100 অথবা -50)", "error"); return; }
+    if (!balanceTargetUid) return;
+
+    db.ref("users/" + balanceTargetUid + "/walletBalance").transaction((current) => (current || 0) + amount)
+      .then((res) => {
+        if (!res.committed) { showToast("ব্যালেন্স আপডেট করা যায়নি", "error"); return; }
+        showToast("ব্যালেন্স সফলভাবে আপডেট হয়েছে", "success");
+        closeBalanceModal();
+        loadUsers();
+      })
+      .catch(() => showToast("ব্যালেন্স আপডেট করা যায়নি", "error"));
+  }
+</script>
+</body>
+</html>

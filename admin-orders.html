@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>অর্ডার সমূহ — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">অর্ডার সমূহ<span class="sub-title">রিচার্জ / অফার / ইন্টারনেট / মিনিট</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadOrders()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="tab-row" id="statusTabs">
+    <button class="tab-btn active" data-status="pending" onclick="setFilter('pending')">পেন্ডিং</button>
+    <button class="tab-btn" data-status="completed" onclick="setFilter('completed')">সম্পন্ন</button>
+    <button class="tab-btn" data-status="rejected" onclick="setFilter('rejected')">বাতিল</button>
+    <button class="tab-btn" data-status="all" onclick="setFilter('all')">সকল অর্ডার</button>
+  </div>
+  <div id="ordersBox"><div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div></div>
+</div>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let allOrders = [];
+  let usersMap = {};
+  let currentFilter = "pending";
+
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    loadOrders();
+  });
+
+  function loadOrders() {
+    document.getElementById("ordersBox").innerHTML = '<div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>';
+    Promise.all([db.ref("orders").once("value"), db.ref("users").once("value")])
+      .then(([ordersSnap, usersSnap]) => {
+        usersMap = {};
+        usersSnap.forEach((c) => { usersMap[c.key] = c.val() || {}; });
+        allOrders = [];
+        ordersSnap.forEach((c) => { const o = c.val() || {}; o.id = c.key; allOrders.push(o); });
+        allOrders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        renderOrders();
+      })
+      .catch(() => {
+        document.getElementById("ordersBox").innerHTML = '<div class="empty-state">অর্ডার লোড করা যায়নি</div>';
+      });
+  }
+
+  function setFilter(status) {
+    currentFilter = status;
+    document.querySelectorAll("#statusTabs .tab-btn").forEach(b => b.classList.toggle("active", b.dataset.status === status));
+    renderOrders();
+  }
+
+  function userLabel(uid) {
+    const u = usersMap[uid];
+    if (!u) return uid ? uid.slice(0, 8) + "…" : "-";
+    return escapeHtml(u.name || u.firstName || (u.customUid || uid.slice(0, 8)));
+  }
+  function userMobile(uid) {
+    const u = usersMap[uid];
+    return u && u.mobile ? escapeHtml(u.mobile) : "";
+  }
+  function userPhoto(uid) {
+    const u = usersMap[uid];
+    return u ? u.photoUrl : "";
+  }
+
+  function renderOrders() {
+    const list = currentFilter === "all" ? allOrders : allOrders.filter(o => o.status === currentFilter);
+    const box = document.getElementById("ordersBox");
+    if (list.length === 0) { box.innerHTML = '<div class="empty-state">কোনো অর্ডার নেই</div>'; return; }
+    box.innerHTML = list.map(o => {
+      const typeLabel = o.type === "simple-recharge" ? "সরাসরি রিচার্জ" : (o.offerName ? escapeHtml(o.offerName) : (o.category || "-"));
+      const statusBadge = `<span class="badge ${o.status}">${o.status === 'pending' ? 'পেন্ডিং' : o.status === 'completed' ? 'সম্পন্ন' : o.status === 'processing' ? 'প্রসেসিং...' : 'বাতিল'}</span>`;
+      const payBadge = o.prepaid ? '<span class="badge prepaid">প্রিপেইড</span>' : '<span class="badge postpaid">পোস্টপেইড</span>';
+      const actions = o.status === "pending"
+        ? `<div class="dc-actions">
+             <button class="btn btn-green" onclick="approveOrder('${o.id}', this)"><i class="fa-solid fa-check"></i> অনুমোদন</button>
+             <button class="btn btn-red" onclick="rejectOrder('${o.id}', this)"><i class="fa-solid fa-xmark"></i> বাতিল</button>
+           </div>` : "";
+      return `<div class="data-card">
+        <div class="dc-top">
+          <div class="avatar-row">
+            ${avatarHtml(userPhoto(o.userId), 'sm')}
+            <div><div class="dc-title">${userLabel(o.userId)}</div><div class="dc-sub">${userMobile(o.userId)}</div></div>
+          </div>
+          <div class="dc-time">${fmtDate(o.createdAt)}</div>
+        </div>
+        <div class="dc-badges">${statusBadge}${payBadge}</div>
+        <div class="dc-grid">
+          <div class="dc-item"><div class="k">ধরন</div><div class="v">${typeLabel}</div></div>
+          <div class="dc-item"><div class="k">অপারেটর</div><div class="v">${escapeHtml(o.operator || '-')}</div></div>
+          <div class="dc-item"><div class="k">নাম্বার</div><div class="v copyable-row">${escapeHtml(o.number || '-')}${o.number ? `<button class="copy-btn" onclick="copyText('${escapeHtml(o.number)}','নাম্বার কপি হয়েছে')"><i class="fa-solid fa-copy"></i></button>` : ''}</div></div>
+          <div class="dc-item"><div class="k">এমাউন্ট</div><div class="v">${fmtMoney(o.amount)}</div></div>
+        </div>
+        ${actions}
+      </div>`;
+    }).join("");
+  }
+
+  // অর্ডার প্রসেসিং শুরুর আগে status-এ একটা অ্যাটমিক "claim" নেওয়া হয় (pending -> processing)।
+  // এটা ব্যর্থ হলে বুঝতে হবে অন্য কোনো ক্লিক/ট্যাব/অ্যাডমিন ইতিমধ্যে এই অর্ডারটা প্রসেস করছে —
+  // তাই ডাবল-ক্লিক বা দুই ডিভাইস থেকে একসাথে Approve করলেও ব্যালেন্স দুইবার কাটা/ফেরত হবে না।
+  function claimOrder(orderId) {
+    return db.ref("orders/" + orderId + "/status").transaction((current) => {
+      if (current !== "pending") return; // undefined রিটার্ন করলে ট্রানজেকশন নিজেই abort হয়ে যায়
+      return "processing";
+    });
+  }
+
+  function releaseOrderBackToPending(orderId) {
+    // claim নেওয়ার পর কোনো ধাপ ব্যর্থ হলে অর্ডারটা হারিয়ে না গিয়ে আবার পেন্ডিং-এ ফিরে আসে
+    db.ref("orders/" + orderId + "/status").set("pending").catch(() => {});
+  }
+
+  // অর্ডার অনুমোদন: প্রিপেইড অর্ডারে আগেই ব্যালেন্স কাটা হয়েছে (শুধু স্ট্যাটাস আপডেট)।
+  // পোস্টপেইড অর্ডারে (offers/recharge-operators/simple-recharge) এখনই ব্যালেন্স কাটা হয় ও totalSpent বাড়ে।
+  function approveOrder(orderId, btnEl) {
+    const order = allOrders.find(o => o.id === orderId);
+    if (!order || order.status !== "pending") return;
+    if (!confirm("এই অর্ডারটি অনুমোদন করবেন?")) return;
+
+    if (btnEl) btnEl.disabled = true;
+
+    claimOrder(orderId).then((claimRes) => {
+      if (!claimRes.committed) {
+        showToast("অর্ডারটি ইতিমধ্যে প্রসেস করা হয়েছে/হচ্ছে", "error");
+        loadOrders();
+        return;
+      }
+
+      const finish = () => {
+        db.ref("orders/" + orderId).update({ status: "completed" })
+          .then(() => { showToast("অর্ডার অনুমোদন করা হয়েছে", "success"); loadOrders(); })
+          .catch(() => {
+            releaseOrderBackToPending(orderId);
+            showToast("অর্ডার আপডেট করা যায়নি", "error");
+            loadOrders();
+          });
+      };
+
+      if (order.prepaid) {
+        finish();
+      } else {
+        const amount = Number(order.amount || 0);
+        const balRef = db.ref("users/" + order.userId + "/walletBalance");
+
+        // প্রথমে আসল ব্যালেন্স একবার সরাসরি সার্ভার থেকে রিড করে ক্যাশ "গরম" করে নেওয়া হচ্ছে —
+        // এটা না করলে .transaction() প্রথমবার লোকাল ক্যাশ খালি পেয়ে ভুলভাবে balance=0 ধরে
+        // অ্যাবর্ট করে দিতে পারে, যদিও আসল ব্যালেন্স যথেষ্ট থাকে
+        balRef.once("value").then(() => {
+          return balRef.transaction((current) => {
+            const bal = current || 0;
+            if (bal < amount) return; // সত্যিই অপর্যাপ্ত হলেই কেবল এখন অ্যাবর্ট হবে
+            return bal - amount;
+          });
+        }).then((res) => {
+          if (!res.committed) {
+            releaseOrderBackToPending(orderId);
+            showToast("ইউজারের ব্যালেন্স পর্যাপ্ত নয়, অর্ডার অনুমোদন করা যায়নি", "error");
+            loadOrders();
+            return;
+          }
+          db.ref("users/" + order.userId + "/totalSpent").transaction((cur) => (cur || 0) + amount);
+          finish();
+        }).catch(() => {
+          releaseOrderBackToPending(orderId);
+          showToast("ব্যালেন্স আপডেট করা যায়নি", "error");
+          loadOrders();
+        });
+      }
+    }).catch(() => {
+      showToast("অর্ডার প্রসেস করা যায়নি, আবার চেষ্টা করুন", "error");
+      if (btnEl) btnEl.disabled = false;
+    });
+  }
+
+  // অর্ডার বাতিল: প্রিপেইড অর্ডারে আগে কাটা ব্যালেন্স ফেরত দেওয়া হয়।
+  // পোস্টপেইড অর্ডারে কোনো ব্যালেন্স কাটা হয়নি বলে ফেরত দেওয়ার দরকার নেই।
+  function rejectOrder(orderId, btnEl) {
+    const order = allOrders.find(o => o.id === orderId);
+    if (!order || order.status !== "pending") return;
+    if (!confirm("এই অর্ডারটি বাতিল করবেন?" + (order.prepaid ? " ইউজারের ব্যালেন্স ফেরত দেওয়া হবে।" : ""))) return;
+
+    if (btnEl) btnEl.disabled = true;
+
+    claimOrder(orderId).then((claimRes) => {
+      if (!claimRes.committed) {
+        showToast("অর্ডারটি ইতিমধ্যে প্রসেস করা হয়েছে/হচ্ছে", "error");
+        loadOrders();
+        return;
+      }
+
+      const finish = () => {
+        db.ref("orders/" + orderId).update({ status: "rejected" })
+          .then(() => { showToast("অর্ডার বাতিল করা হয়েছে", "success"); loadOrders(); })
+          .catch(() => {
+            releaseOrderBackToPending(orderId);
+            showToast("অর্ডার আপডেট করা যায়নি", "error");
+            loadOrders();
+          });
+      };
+
+      if (order.prepaid) {
+        const amount = Number(order.amount || 0);
+        const balRef = db.ref("users/" + order.userId + "/walletBalance");
+        balRef.transaction((current) => (current || 0) + amount)
+          .then((res) => {
+            if (!res.committed) {
+              releaseOrderBackToPending(orderId);
+              showToast("ব্যালেন্স ফেরত দেওয়া যায়নি", "error");
+              loadOrders();
+              return;
+            }
+            finish();
+          })
+          .catch(() => {
+            releaseOrderBackToPending(orderId);
+            showToast("ব্যালেন্স ফেরত দেওয়া যায়নি", "error");
+            loadOrders();
+          });
+      } else {
+        finish();
+      }
+    }).catch(() => {
+      showToast("অর্ডার প্রসেস করা যায়নি, আবার চেষ্টা করুন", "error");
+      if (btnEl) btnEl.disabled = false;
+    });
+  }
+</script>
+</body>
+</html>

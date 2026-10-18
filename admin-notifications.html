@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>নোটিফিকেশন — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">নোটিফিকেশন<span class="sub-title">সবাইকে বা নির্বাচিত ইউজারকে পাঠান</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadHistory()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="sec-head" style="margin-top:0;"><h2><i class="fa-solid fa-paper-plane"></i> নতুন নোটিফিকেশন</h2></div>
+  <div class="data-card">
+    <div class="field">
+      <label>কাকে পাঠাবেন</label>
+      <select id="notifTarget" onchange="onTargetChange()">
+        <option value="all">সকল ইউজার (Broadcast)</option>
+        <option value="specific">নির্দিষ্ট এক বা একাধিক ইউজার</option>
+      </select>
+    </div>
+    <div class="field hidden" id="specificUserField">
+      <button class="btn btn-cyan btn-block" onclick="openUserPickModal()"><i class="fa-solid fa-users"></i> ইউজার সিলেক্ট করুন</button>
+      <div id="selectedUserLbl" class="dc-sub" style="margin-top:8px;">কোনো ইউজার নির্বাচিত নেই</div>
+    </div>
+
+    <div class="field">
+      <label>মেয়াদ (এই সময় পর নোটিফিকেশন স্বয়ংক্রিয়ভাবে মুছে যাবে)</label>
+      <div class="expiry-row" id="expiryRow">
+        <button type="button" class="expiry-chip" data-h="6" onclick="setExpiry(6)">৬ ঘণ্টা</button>
+        <button type="button" class="expiry-chip" data-h="12" onclick="setExpiry(12)">১২ ঘণ্টা</button>
+        <button type="button" class="expiry-chip active" data-h="24" onclick="setExpiry(24)">২৪ ঘণ্টা</button>
+        <button type="button" class="expiry-chip" data-h="48" onclick="setExpiry(48)">৪৮ ঘণ্টা</button>
+        <button type="button" class="expiry-chip" data-h="168" onclick="setExpiry(168)">৭ দিন</button>
+        <button type="button" class="expiry-chip" data-h="360" onclick="setExpiry(360)">১৫ দিন</button>
+        <button type="button" class="expiry-chip" data-h="720" onclick="setExpiry(720)">৩০ দিন</button>
+      </div>
+    </div>
+
+    <div class="field"><label>শিরোনাম (Title)</label><input type="text" id="notifTitle" placeholder="যেমনঃ অফার এসেছে!"></div>
+    <div class="field"><label>মেসেজ</label><textarea id="notifMessage" placeholder="নোটিফিকেশনের বিস্তারিত লিখুন..."></textarea></div>
+    <button class="btn btn-cyan btn-block" id="sendBtn" onclick="sendNotification()"><i class="fa-solid fa-paper-plane"></i> পাঠিয়ে দিন</button>
+  </div>
+
+  <div class="sec-head"><h2><i class="fa-solid fa-clock-rotate-left"></i> সাম্প্রতিক নোটিফিকেশন</h2></div>
+  <div id="notifHistoryBox"><div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div></div>
+</div>
+
+<!-- মাল্টি-সিলেক্ট ইউজার মোডাল -->
+<div class="modal-overlay" id="userPickModal">
+  <div class="modal-box">
+    <h3><i class="fa-solid fa-users"></i> ইউজার সিলেক্ট করুন</h3>
+    <input type="text" id="pickSearchBox" class="search-box" style="margin-bottom:0;" placeholder="নাম বা মোবাইল দিয়ে খুঁজুন..." oninput="renderUserPickList()">
+    <div class="pick-count-bar">
+      <span id="pickCountLabel">০ জন নির্বাচিত</span>
+      <span style="color:var(--cyan); cursor:pointer;" onclick="toggleSelectAllPick()" id="pickSelectAllBtn">সকল সিলেক্ট করুন</span>
+    </div>
+    <div class="user-pick-list" id="userPickList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-muted" onclick="closeUserPickModal()">বাতিল</button>
+      <button class="btn btn-green" onclick="confirmUserPick()"><i class="fa-solid fa-check"></i> নিশ্চিত করুন</button>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  let allUsers = [];
+  let selectedUserUids = [];      // মোডালে কনফার্ম করা লিস্ট
+  let pickTempSelected = new Set(); // মোডাল খোলা অবস্থায় সাময়িক সিলেকশন
+  let expiryHours = 24;
+
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    db.ref("users").once("value").then((snap) => {
+      allUsers = [];
+      snap.forEach((c) => { const u = c.val() || {}; u.uid = c.key; allUsers.push(u); });
+    }).catch(() => {
+      showToast("ইউজার লিস্ট লোড করা যায়নি", "error");
+    }).finally(() => {
+      cleanupExpiredNotifications().finally(loadHistory);
+    });
+  });
+
+  function onTargetChange() {
+    const isSpecific = document.getElementById("notifTarget").value === "specific";
+    document.getElementById("specificUserField").classList.toggle("hidden", !isSpecific);
+  }
+
+  function setExpiry(hours) {
+    expiryHours = hours;
+    document.querySelectorAll("#expiryRow .expiry-chip").forEach(b => b.classList.toggle("active", Number(b.dataset.h) === hours));
+  }
+
+  // ---------- মাল্টি-সিলেক্ট ইউজার মোডাল ----------
+  function openUserPickModal() {
+    pickTempSelected = new Set(selectedUserUids);
+    document.getElementById("pickSearchBox").value = "";
+    renderUserPickList();
+    document.getElementById("userPickModal").classList.add("show");
+  }
+  function closeUserPickModal() {
+    document.getElementById("userPickModal").classList.remove("show");
+  }
+
+  function renderUserPickList() {
+    const q = document.getElementById("pickSearchBox").value.trim().toLowerCase();
+    let list = allUsers;
+    if (q) {
+      list = list.filter(u =>
+        (u.name || "").toLowerCase().includes(q) ||
+        (u.mobile || "").toLowerCase().includes(q) ||
+        (u.customUid || "").toLowerCase().includes(q)
+      );
+    }
+    const box = document.getElementById("userPickList");
+    if (list.length === 0) { box.innerHTML = '<div class="empty-state">কোনো ইউজার পাওয়া যায়নি</div>'; }
+    else {
+      box.innerHTML = list.map(u => `
+        <label class="user-pick-item">
+          <input type="checkbox" data-uid="${u.uid}" ${pickTempSelected.has(u.uid) ? 'checked' : ''} onchange="onPickToggle('${u.uid}', this.checked)">
+          ${avatarHtml(u.photoUrl, 'sm')}
+          <div><div class="nm">${escapeHtml(u.name || u.firstName || '')}</div><div class="mb">${escapeHtml(u.mobile || '-')}</div></div>
+        </label>
+      `).join("");
+    }
+    updatePickCountLabel();
+  }
+
+  function onPickToggle(uid, checked) {
+    if (checked) pickTempSelected.add(uid); else pickTempSelected.delete(uid);
+    updatePickCountLabel();
+  }
+
+  function updatePickCountLabel() {
+    document.getElementById("pickCountLabel").textContent = pickTempSelected.size + " জন নির্বাচিত";
+  }
+
+  function toggleSelectAllPick() {
+    const checkboxes = document.querySelectorAll("#userPickList input[type=checkbox]");
+    const allChecked = [...checkboxes].every(c => c.checked);
+    checkboxes.forEach(c => {
+      c.checked = !allChecked;
+      if (!allChecked) pickTempSelected.add(c.dataset.uid); else pickTempSelected.delete(c.dataset.uid);
+    });
+    document.getElementById("pickSelectAllBtn").textContent = allChecked ? "সকল সিলেক্ট করুন" : "সকল বাদ দিন";
+    updatePickCountLabel();
+  }
+
+  function confirmUserPick() {
+    selectedUserUids = Array.from(pickTempSelected);
+    const lbl = document.getElementById("selectedUserLbl");
+    if (selectedUserUids.length === 0) {
+      lbl.textContent = "কোনো ইউজার নির্বাচিত নেই";
+    } else if (selectedUserUids.length <= 3) {
+      const names = selectedUserUids.map(uid => {
+        const u = allUsers.find(x => x.uid === uid);
+        return u ? (u.name || u.firstName || uid.slice(0, 6)) : uid.slice(0, 6);
+      });
+      lbl.textContent = "নির্বাচিতঃ " + names.join(", ");
+    } else {
+      lbl.textContent = selectedUserUids.length + " জন ইউজার নির্বাচিত";
+    }
+    closeUserPickModal();
+  }
+
+  // ---------- নোটিফিকেশন পাঠানো ----------
+  function sendNotification() {
+    const target = document.getElementById("notifTarget").value;
+    const title = document.getElementById("notifTitle").value.trim();
+    const message = document.getElementById("notifMessage").value.trim();
+    if (!title || !message) { showToast("শিরোনাম ও মেসেজ দিন", "error"); return; }
+    if (target === "specific" && selectedUserUids.length === 0) { showToast("অন্তত একজন ইউজার নির্বাচন করুন", "error"); return; }
+
+    const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
+    const btn = document.getElementById("sendBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> পাঠানো হচ্ছে...';
+
+    let sendPromise;
+    if (target === "all") {
+      sendPromise = db.ref("notifications").push({
+        userId: "all", title, message, read: false, expiresAt,
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      });
+    } else {
+      // প্রতিটা নির্বাচিত ইউজারের জন্য আলাদা নোটিফিকেশন রেকর্ড তৈরি হয় — ইউজার অ্যাপ শুধু
+      // userId==নিজের uid বা userId=='all' খোঁজে, তাই এটাই সবচেয়ে সহজ ও সামঞ্জস্যপূর্ণ পদ্ধতি
+      const updates = {};
+      selectedUserUids.forEach((uid) => {
+        const key = db.ref("notifications").push().key;
+        updates[key] = { userId: uid, title, message, read: false, expiresAt, createdAt: Date.now() };
+      });
+      sendPromise = db.ref("notifications").update(updates);
+    }
+
+    sendPromise.then(() => {
+      showToast("নোটিফিকেশন পাঠানো হয়েছে", "success");
+      document.getElementById("notifTitle").value = "";
+      document.getElementById("notifMessage").value = "";
+      selectedUserUids = [];
+      document.getElementById("selectedUserLbl").textContent = "কোনো ইউজার নির্বাচিত নেই";
+      loadHistory();
+    }).catch(() => {
+      showToast("নোটিফিকেশন পাঠানো যায়নি", "error");
+    }).finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> পাঠিয়ে দিন';
+    });
+  }
+
+  // ---------- সাম্প্রতিক নোটিফিকেশন লিস্ট + ডিলিট + কাউন্টডাউন ----------
+  function loadHistory() {
+    document.getElementById("notifHistoryBox").innerHTML = '<div class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>';
+    db.ref("notifications").limitToLast(40).once("value").then((snap) => {
+      const list = [];
+      snap.forEach((c) => { const n = c.val() || {}; n.id = c.key; list.push(n); });
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      renderHistory(list);
+    }).catch(() => {
+      document.getElementById("notifHistoryBox").innerHTML = '<div class="empty-state">লোড করা যায়নি</div>';
+    });
+  }
+
+  function renderHistory(list) {
+    const box = document.getElementById("notifHistoryBox");
+    if (list.length === 0) { box.innerHTML = '<div class="empty-state">এখনো কোনো নোটিফিকেশন পাঠানো হয়নি</div>'; return; }
+    box.innerHTML = list.map(n => {
+      let recipient = "সকল ইউজার";
+      if (n.userId && n.userId !== "all") {
+        const u = allUsers.find(x => x.uid === n.userId);
+        recipient = u ? (u.name || u.firstName || n.userId.slice(0, 8)) : n.userId.slice(0, 8) + "…";
+      }
+      return `<div class="data-card">
+        <div class="dc-top">
+          <div><div class="dc-title">${escapeHtml(n.title || '-')}</div><div class="dc-sub">প্রাপকঃ ${escapeHtml(recipient)}</div></div>
+          <div class="dc-time">${fmtDate(n.createdAt)}</div>
+        </div>
+        <div style="font-size:12.5px;color:var(--text);margin-bottom:10px;">${escapeHtml(n.message || '')}</div>
+        <div class="dc-actions" style="align-items:center;">
+          <span class="countdown-badge"><i class="fa-solid fa-hourglass-half"></i> ${escapeHtml(timeLeftLabel(n.expiresAt))}</span>
+          <button class="btn btn-red" style="margin-left:auto;" onclick="deleteNotification('${n.id}')"><i class="fa-solid fa-trash"></i> ডিলিট</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function deleteNotification(id) {
+    if (!confirm("এই নোটিফিকেশনটি মুছে ফেলতে চান?")) return;
+    db.ref("notifications/" + id).remove()
+      .then(() => { showToast("নোটিফিকেশন মুছে ফেলা হয়েছে", "success"); loadHistory(); })
+      .catch(() => showToast("মুছে ফেলা যায়নি", "error"));
+  }
+</script>
+</body>
+</html>

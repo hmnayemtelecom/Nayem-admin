@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ড্যাশবোর্ড — Admin | HM-NAYEM-TELECOM</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left"><button class="icon-btn" onclick="openMenu()"><i class="fa-solid fa-bars"></i></button></div>
+  <div class="title">ড্যাশবোর্ড<span class="sub-title">সার্বিক পরিসংখ্যান</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="loadDashboard()"><i class="fa-solid fa-rotate"></i></button>
+    <button class="icon-btn logout-icon" onclick="confirmLogout()" title="লগআউট"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="loadingBox" class="loader-wrap"><div class="spin"></div> লোড হচ্ছে...</div>
+
+  <div id="dashContent" class="hidden">
+    <div class="stat-grid">
+      <div class="stat-card c-cyan"><div class="lbl">মোট ইউজার</div><div class="val" id="statUsers">0</div><i class="fa-solid fa-users"></i></div>
+      <div class="stat-card c-yellow"><div class="lbl">পেন্ডিং অর্ডার</div><div class="val" id="statPendingOrders">0</div><i class="fa-solid fa-cart-shopping"></i></div>
+      <div class="stat-card c-yellow"><div class="lbl">পেন্ডিং ডিপোজিট</div><div class="val" id="statPendingDeposits">0</div><i class="fa-solid fa-wallet"></i></div>
+      <div class="stat-card c-green"><div class="lbl">মোট ওয়ালেট ব্যালেন্স</div><div class="val" id="statWallet">৳0</div><i class="fa-solid fa-sack-dollar"></i></div>
+      <div class="stat-card c-magenta"><div class="lbl">সম্পন্ন অর্ডার</div><div class="val" id="statCompletedOrders">0</div><i class="fa-solid fa-circle-check"></i></div>
+      <div class="stat-card c-red"><div class="lbl">ব্লকড ইউজার</div><div class="val" id="statBlocked">0</div><i class="fa-solid fa-user-slash"></i></div>
+    </div>
+
+    <div class="sec-head"><h2><i class="fa-solid fa-cart-shopping"></i> পেন্ডিং অর্ডার</h2><a href="admin-orders.html">সব দেখুন →</a></div>
+    <div id="recentOrdersBox"></div>
+
+    <div class="sec-head"><h2><i class="fa-solid fa-wallet"></i> পেন্ডিং ডিপোজিট</h2><a href="admin-deposits.html">সব দেখুন →</a></div>
+    <div id="recentDepositsBox"></div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <a href="admin-dashboard.html" class="nav-item" data-page="admin-dashboard.html"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" class="nav-item" data-page="admin-orders.html"><span class="nav-icon"><i class="fa-solid fa-cart-shopping"></i><span class="nav-dot js-order-dot"></span></span>অর্ডার</a>
+  <a href="admin-deposits.html" class="nav-item" data-page="admin-deposits.html"><span class="nav-icon"><i class="fa-solid fa-wallet"></i><span class="nav-dot js-deposit-dot"></span></span>ডিপোজিট</a>
+  <a href="admin-chats.html" class="nav-item" data-page="admin-chats.html"><span class="nav-icon"><i class="fa-solid fa-comments"></i></span>চ্যাট</a>
+  <a href="#" class="nav-item" onclick="openMenu(); return false;"><span class="nav-icon"><i class="fa-solid fa-bars"></i></span>মেনু</a>
+</div>
+
+<div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<div class="side-menu" id="sideMenu">
+  <button class="close-menu" onclick="closeMenu()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="side-menu-header">
+    <img src="png/logo.png" alt="logo" onerror="this.src='https://placehold.co/46x46/000/0ff?text=HM'">
+    <div><div class="name">HM-NAYEM-TELECOM<br>ADMIN PANEL</div><div class="ver" id="sideMenuEmail"></div></div>
+  </div>
+  <hr>
+  <a href="admin-dashboard.html" data-page="admin-dashboard.html"><i class="fa-solid fa-gauge-high"></i> ড্যাশবোর্ড</a>
+  <a href="admin-orders.html" data-page="admin-orders.html"><i class="fa-solid fa-cart-shopping"></i> অর্ডার সমূহ <span class="mini-badge js-order-count"></span></a>
+  <a href="admin-deposits.html" data-page="admin-deposits.html"><i class="fa-solid fa-wallet"></i> ডিপোজিট <span class="mini-badge js-deposit-count"></span></a>
+  <a href="admin-users.html" data-page="admin-users.html"><i class="fa-solid fa-users"></i> ইউজার সমূহ</a>
+  <a href="admin-offers.html" data-page="admin-offers.html"><i class="fa-solid fa-tags"></i> অফার সমূহ</a>
+  <a href="admin-banners.html" data-page="admin-banners.html"><i class="fa-solid fa-image"></i> ব্যানার সমূহ</a>
+  <a href="admin-chats.html" data-page="admin-chats.html"><i class="fa-solid fa-comments"></i> চ্যাট/সাপোর্ট</a>
+  <a href="admin-notifications.html" data-page="admin-notifications.html"><i class="fa-solid fa-bell"></i> নোটিফিকেশন</a>
+  <a href="admin-settings.html" data-page="admin-settings.html"><i class="fa-solid fa-gear"></i> সেটিংস</a>
+  <a href="#" class="logout-link" onclick="confirmLogout(); return false;"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</a>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+  requireAdminAuth((user) => {
+    document.getElementById("sideMenuEmail").textContent = user.email || "";
+    markActiveNav();
+    initScrollHideNav();
+    watchPendingBadges();
+    loadDashboard();
+  });
+
+  function loadDashboard() {
+    document.getElementById("loadingBox").classList.remove("hidden");
+    document.getElementById("dashContent").classList.add("hidden");
+
+    Promise.all([db.ref("users").once("value"), db.ref("orders").once("value"), db.ref("deposits").once("value")])
+      .then(([usersSnap, ordersSnap, depositsSnap]) => {
+        let totalUsers = 0, totalWallet = 0, blockedCount = 0;
+        const usersMap = {};
+        usersSnap.forEach((child) => {
+          const u = child.val() || {};
+          usersMap[child.key] = u;
+          totalUsers++;
+          totalWallet += Number(u.walletBalance || 0);
+          if (u.blocked === true) blockedCount++;
+        });
+        document.getElementById("statUsers").textContent = totalUsers;
+        document.getElementById("statWallet").textContent = fmtMoney(totalWallet);
+        document.getElementById("statBlocked").textContent = blockedCount;
+
+        let pendingOrders = 0, completedOrders = 0;
+        const orderList = [];
+        ordersSnap.forEach((child) => {
+          const o = child.val() || {}; o.id = child.key;
+          if (o.status === "pending") pendingOrders++;
+          if (o.status === "completed") completedOrders++;
+          orderList.push(o);
+        });
+        document.getElementById("statPendingOrders").textContent = pendingOrders;
+        document.getElementById("statCompletedOrders").textContent = completedOrders;
+        const recentOrders = orderList.filter(o => o.status === "pending").sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,4);
+        renderRecentOrders(recentOrders, usersMap);
+
+        let pendingDeposits = 0;
+        const depositList = [];
+        depositsSnap.forEach((child) => {
+          const d = child.val() || {}; d.id = child.key;
+          if (d.status === "pending") pendingDeposits++;
+          depositList.push(d);
+        });
+        document.getElementById("statPendingDeposits").textContent = pendingDeposits;
+        const recentDeposits = depositList.filter(d => d.status === "pending").sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,4);
+        renderRecentDeposits(recentDeposits, usersMap);
+
+        document.getElementById("loadingBox").classList.add("hidden");
+        document.getElementById("dashContent").classList.remove("hidden");
+      })
+      .catch(() => {
+        document.getElementById("loadingBox").innerHTML = '<div class="empty-state">ডাটা লোড করা যায়নি — ইন্টারনেট বা ডাটাবেস পারমিশন চেক করুন।</div>';
+      });
+  }
+
+  function userLabel(uid, usersMap) {
+    const u = usersMap[uid];
+    if (!u) return uid ? uid.slice(0, 8) + "…" : "-";
+    return escapeHtml(u.name || u.firstName || (u.customUid || uid.slice(0, 8)));
+  }
+
+  function renderRecentOrders(list, usersMap) {
+    const box = document.getElementById("recentOrdersBox");
+    if (list.length === 0) { box.innerHTML = '<div class="empty-state">কোনো পেন্ডিং অর্ডার নেই</div>'; return; }
+    box.innerHTML = list.map(o => `
+      <div class="data-card">
+        <div class="dc-top">
+          <div><div class="dc-title">${userLabel(o.userId, usersMap)}</div><div class="dc-sub">${escapeHtml(o.operator||'-')}${o.type==='simple-recharge'?' (সরাসরি)':''} · ${escapeHtml(o.number||'-')}</div></div>
+          <div class="dc-time">${fmtDate(o.createdAt)}</div>
+        </div>
+        <div class="dc-badges"><span class="badge pending">পেন্ডিং</span><span class="badge ${o.prepaid?'prepaid':'postpaid'}">${o.prepaid?'প্রিপেইড':'পোস্টপেইড'}</span></div>
+        <div class="dc-item"><div class="k">এমাউন্ট</div><div class="v">${fmtMoney(o.amount)}</div></div>
+      </div>`).join("");
+  }
+
+  function renderRecentDeposits(list, usersMap) {
+    const box = document.getElementById("recentDepositsBox");
+    if (list.length === 0) { box.innerHTML = '<div class="empty-state">কোনো পেন্ডিং ডিপোজিট নেই</div>'; return; }
+    box.innerHTML = list.map(d => `
+      <div class="data-card">
+        <div class="dc-top">
+          <div><div class="dc-title">${userLabel(d.userId, usersMap)}</div><div class="dc-sub">${escapeHtml(d.gateway||'-')} · ${escapeHtml(d.trxId||'-')}</div></div>
+          <div class="dc-time">${fmtDate(d.createdAt)}</div>
+        </div>
+        <div class="dc-badges"><span class="badge pending">পেন্ডিং</span></div>
+        <div class="dc-item"><div class="k">এমাউন্ট</div><div class="v">${fmtMoney(d.amount)}</div></div>
+      </div>`).join("");
+  }
+</script>
+</body>
+</html>
